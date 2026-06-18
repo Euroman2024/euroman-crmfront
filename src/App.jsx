@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/useAuthStore';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
+import Chat from './pages/Chat';
 
 // Componente para proteger rutas privadas
 const PrivateRoute = ({ children }) => {
@@ -13,16 +14,29 @@ const PrivateRoute = ({ children }) => {
 const MainLayout = ({ children }) => {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
+  const location = useLocation();
   
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-surface border-b border-border p-4 flex justify-between items-center shadow-md z-20">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold">W</span>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold">W</span>
+            </div>
+            <h1 className="text-xl font-bold text-white mr-4">CRM WhatsApp</h1>
           </div>
-          <h1 className="text-xl font-bold text-white">CRM WhatsApp</h1>
+          
+          <nav className="flex gap-2">
+            <Link to="/" className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              Chat
+            </Link>
+            <Link to="/admin" className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${location.pathname === '/admin' ? 'bg-primary text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              Cuentas QR
+            </Link>
+          </nav>
         </div>
+
         <div className="flex items-center gap-4">
           <span className="text-gray-300 text-sm">Hola, {user?.nombre || 'Usuario'}</span>
           <button 
@@ -51,6 +65,13 @@ function App() {
         
         {/* Rutas Privadas */}
         <Route path="/" element={
+          <PrivateRoute>
+            <MainLayout>
+              <Chat />
+            </MainLayout>
+          </PrivateRoute>
+        } />
+        <Route path="/admin" element={
           <PrivateRoute>
             <MainLayout>
               <Admin />
