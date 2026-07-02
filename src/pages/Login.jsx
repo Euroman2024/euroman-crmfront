@@ -42,7 +42,7 @@ export default function Login() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
             </svg>
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-white">CRM WhatsApp</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-white">Euroman CRM</h2>
           <p className="text-gray-400 mt-2 text-sm">Inicia sesión en tu espacio de trabajo</p>
         </div>
 

@@ -7,12 +7,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#0B0F19', // Deep dark blue
-        surface: '#1A2235', // Lighter surface
-        primary: '#3B82F6', // Vibrant blue
-        secondary: '#10B981', // Emerald green
-        accent: '#8B5CF6', // Purple
-        border: '#2E3B5B', // Subtle border
+        background: '#111b21', // Fondo de la bandeja y general
+        surface: '#202c33', // Cabeceras y barra inferior
+        primary: '#00a884', // Verde WhatsApp
+        'bubble-out': '#005c4b', // Burbuja enviada
+        'bubble-in': '#202c33', // Burbuja recibida
+        hover: '#2a3942', // Hover en chats
+        accent: '#00a884',
+        border: '#222d34', // Separador fino
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
