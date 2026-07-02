@@ -80,17 +80,12 @@ Esta aplicación es la interfaz web de Euroman CRM. Permite:
 
 ## Variables de entorno
 
-Configura estas variables en un archivo `.env` en la raíz de `crm-whatsapp-front`:
+El frontend usa variables de entorno para configurar la conexión con el backend y el servidor de Socket.IO.
 
-```env
-VITE_API_URL=http://localhost:3000/api
-VITE_SOCKET_URL=http://localhost:3000
-```
+- `VITE_API_URL`: URL base de la API.
+- `VITE_SOCKET_URL`: URL del servidor Socket.IO.
 
-Si no se establecen, el frontend usa estos valores por defecto:
-
-- `http://localhost:3000/api`
-- `http://localhost:3000`
+Estas variables deben configurarse de forma segura en el entorno de desarrollo o despliegue. No guardes credenciales ni secretos sensibles en archivos públicos.
 
 ## Comandos disponibles
 
