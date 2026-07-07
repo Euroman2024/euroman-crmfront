@@ -223,10 +223,7 @@ export default function Chat() {
       <div className="w-[30%] min-w-[350px] max-w-[420px] border-r border-border bg-background flex flex-col z-10">
         
         {/* Cabecera del Sidebar */}
-        <div className="h-16 px-4 bg-surface flex items-center justify-between border-b border-border">
-          <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
-             <img src="https://ui-avatars.com/api/?name=Ventas&background=random" alt="User" />
-          </div>
+        <div className="h-16 px-4 bg-surface flex items-center justify-end border-b border-border">
           <div className="flex items-center gap-4 text-gray-400">
              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12.072 1.761a10.05 10.05 0 00-9.303 5.65.977.977 0 00.324 1.273l.204.144a.984.984 0 01.353 1.052l-.209.67c-.204.642.167 1.3.82 1.455l.894.21a.992.992 0 01.737.838l.142.748c.112.585.69 1.002 1.282.93l.89-.108a.984.984 0 011.02.592l.33 0.72c.264.577.97.808 1.543.518l.836-.425a.984.984 0 011.233.197l.55.55c.44.44 1.15.43 1.58-.024l.504-.53a.984.984 0 011.22-.244l.8.44c.56.31 1.25.1 1.52-.47l.3-.64a.984.984 0 011-.56l.83.1a1 1 0 001.07-.86l.08-.7a.984.984 0 01.68-.86l.8-.25c.61-.19.98-.82.84-1.44l-.16-.76a.984.984 0 01.27-1l.6-.6c.45-.45.54-1.16.2-1.72l-.46-.77a.984.984 0 01.03-1.16l.46-.72c.38-.59.27-1.37-.24-1.84l-.64-.58a.984.984 0 01-.26-1.13l.25-.8c.2-.62-.17-1.3-.8-1.46l-.8-.2a.984.984 0 01-.7-.87l-.1-.85c-.06-.6-.62-1.03-1.22-.97l-.84.1a.984.984 0 01-1.04-.63l-.3-.72c-.26-.6-.99-.82-1.57-.5l-.78.43a.984.984 0 01-1.24-.22l-.5-.54c-.45-.48-1.2-.48-1.65-.01l-.48.5a.984.984 0 01-1.23.23l-.75-.4c-.58-.3-1.3-.08-1.58.5l-.27.56a.984.984 0 01-1 .54l-.8-.1c-.6-.08-1.13.3-1.2.9z" /></svg>
              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.005 3.175H4.674C3.642 3.175 3 3.789 3 4.821V21.02l3.544-3.514h12.461c1.033 0 1.664-.596 1.664-1.629V4.821c-.001-1.032-.632-1.646-1.664-1.646zm-4.989 9.869H7.041V11.1h6.975v1.944zm3-4H7.041V7.1h9.975v1.944z"/></svg>
