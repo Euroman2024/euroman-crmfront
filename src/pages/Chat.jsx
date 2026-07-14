@@ -3,6 +3,38 @@ import { io } from 'socket.io-client';
 import api from '../api/axios';
 import EmojiPicker from 'emoji-picker-react';
 
+const formatPhoneNumber = (value = '') => {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return 'Sin número';
+
+  let countryCode = '';
+  let remaining = digits;
+
+  if (digits.length > 10) {
+    countryCode = digits.slice(0, digits.length - 10);
+    remaining = digits.slice(countryCode.length);
+  }
+
+  const groups = [];
+  while (remaining.length > 0) {
+    if (remaining.length > 4) {
+      groups.push(remaining.slice(0, 3));
+      remaining = remaining.slice(3);
+    } else {
+      groups.push(remaining);
+      remaining = '';
+    }
+  }
+
+  return `${countryCode ? `+${countryCode} ` : ''}${groups.join(' ')}`.trim();
+};
+
+const getContactDisplayName = (contacto) => {
+  const name = contacto?.nombre?.trim();
+  if (name) return name;
+  return formatPhoneNumber(contacto?.telefono?.split('@')[0] || contacto?.telefono || '');
+};
+
 export default function Chat() {
   const [conversaciones, setConversaciones] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -207,8 +239,10 @@ export default function Chat() {
 
   const filteredConversaciones = conversaciones.filter(c => {
     if (!searchTerm) return true;
-    const matchName = c.contacto.nombre.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchPhone = c.contacto.telefono.includes(searchTerm);
+    const displayName = getContactDisplayName(c.contacto).toLowerCase();
+    const displayPhone = formatPhoneNumber(c.contacto.telefono?.split('@')[0] || c.contacto.telefono || '').toLowerCase();
+    const matchName = displayName.includes(searchTerm.toLowerCase());
+    const matchPhone = displayPhone.includes(searchTerm.toLowerCase());
     return matchName || matchPhone;
   });
 
@@ -255,6 +289,7 @@ export default function Chat() {
             filteredConversaciones.map((conv) => {
               const isActive = conv.id === activeChatId;
               const lastMessageData = conv.mensajes?.[0];
+              const contactoNombre = getContactDisplayName(conv.contacto);
               let lastMessage = lastMessageData?.contenido || '...';
               
               if (lastMessageData?.tipo === 'outgoing') {
@@ -272,15 +307,15 @@ export default function Chat() {
                 >
                   <div className="w-12 h-12 bg-gray-600 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xl overflow-hidden">
                     {conv.contacto.fotoPerfilUrl ? (
-                      <img src={conv.contacto.fotoPerfilUrl} alt={conv.contacto.nombre} className="w-full h-full object-cover" />
+                      <img src={conv.contacto.fotoPerfilUrl} alt={contactoNombre} className="w-full h-full object-cover" />
                     ) : (
-                      conv.contacto.nombre.charAt(0).toUpperCase()
+                      contactoNombre.charAt(0).toUpperCase()
                     )}
                   </div>
                   <div className="flex-1 overflow-hidden border-b border-border/50 pb-3 -mb-3 pt-1">
                     <div className="flex justify-between items-baseline mb-0.5">
                       <h4 className={`text-[16px] truncate ${conv.estado === 'nuevo' ? 'text-white font-semibold' : 'text-[#e9edef]'}`}>
-                        {conv.contacto.nombre}
+                        {contactoNombre}
                       </h4>
                       <span className={`text-[12px] whitespace-nowrap ml-2 ${conv.estado === 'nuevo' ? 'text-primary font-semibold' : 'text-gray-400'}`}>
                         {lastMessageData ? new Date(lastMessageData.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -317,15 +352,15 @@ export default function Chat() {
               <div className="flex items-center gap-4">
                  <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
                     {activeChat.contacto.fotoPerfilUrl ? (
-                      <img src={activeChat.contacto.fotoPerfilUrl} alt={activeChat.contacto.nombre} className="w-full h-full object-cover" />
+                      <img src={activeChat.contacto.fotoPerfilUrl} alt={getContactDisplayName(activeChat.contacto)} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-white font-bold">{activeChat.contacto.nombre.charAt(0).toUpperCase()}</span>
+                      <span className="text-white font-bold">{getContactDisplayName(activeChat.contacto).charAt(0).toUpperCase()}</span>
                     )}
                  </div>
                  <div className="flex flex-col">
-                   <h3 className="font-semibold text-[#e9edef] text-[16px]">{activeChat.contacto.nombre}</h3>
+                   <h3 className="font-semibold text-[#e9edef] text-[16px]">{getContactDisplayName(activeChat.contacto)}</h3>
                    <span className="text-[13px] text-gray-400">
-                     {activeChat.contacto.telefono.split('@')[0]} • Línea: {activeChat.whatsappAccount?.nombre || 'Desconocida'}
+                     {formatPhoneNumber(activeChat.contacto.telefono?.split('@')[0] || activeChat.contacto.telefono || '')} • Línea: {activeChat.whatsappAccount?.nombre || 'Desconocida'}
                    </span>
                  </div>
               </div>
@@ -414,7 +449,7 @@ export default function Chat() {
               <div className="absolute bottom-16 left-0 w-full bg-surface/95 backdrop-blur border-t border-border p-3 flex items-center justify-between z-20">
                 <div className="flex-1 bg-background border-l-4 border-primary rounded-r p-2 ml-14 mr-4">
                   <p className="text-primary text-xs font-bold mb-1">
-                    {replyingTo.tipo === 'outgoing' ? 'Tú' : activeChat.contacto?.nombre || activeChat.contacto?.telefono}
+                    {replyingTo.tipo === 'outgoing' ? 'Tú' : getContactDisplayName(activeChat.contacto || {})}
                   </p>
                   <p className="text-gray-400 text-xs truncate max-w-full">
                     {replyingTo.contenido || (replyingTo.archivoUrl ? 'Archivo adjunto' : '')}
