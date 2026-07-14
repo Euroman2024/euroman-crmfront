@@ -31,7 +31,8 @@ const formatPhoneNumber = (value = '') => {
 
 const getContactDisplayName = (contacto) => {
   const name = contacto?.nombre?.trim();
-  if (name) return name;
+  const isUnknown = name ? /^(desconocido|unknown)$/i.test(name) : false;
+  if (name && !isUnknown) return name;
   return formatPhoneNumber(contacto?.telefono?.split('@')[0] || contacto?.telefono || '');
 };
 
