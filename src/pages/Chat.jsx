@@ -7,26 +7,24 @@ const formatPhoneNumber = (value = '') => {
   const digits = String(value || '').replace(/\D/g, '');
   if (!digits) return 'Sin número';
 
-  let countryCode = '';
-  let remaining = digits;
-
-  if (digits.length > 10) {
-    countryCode = digits.slice(0, digits.length - 10);
-    remaining = digits.slice(countryCode.length);
-  }
-
-  const groups = [];
-  while (remaining.length > 0) {
-    if (remaining.length > 4) {
-      groups.push(remaining.slice(0, 3));
-      remaining = remaining.slice(3);
-    } else {
-      groups.push(remaining);
-      remaining = '';
+  if (digits.startsWith('593')) {
+    const remaining = digits.slice(3);
+    const groups = [];
+    let rem = remaining;
+    while (rem.length > 0) {
+      if (rem.length > 4) {
+        groups.push(rem.slice(0, 3));
+        rem = rem.slice(3);
+      } else {
+        groups.push(rem);
+        rem = '';
+      }
     }
+    return `+593 ${groups.join(' ')}`.trim();
   }
 
-  return `${countryCode ? `+${countryCode} ` : ''}${groups.join(' ')}`.trim();
+  // fallback genérico
+  return `+${digits}`;
 };
 
 const getContactDisplayName = (contacto) => {
