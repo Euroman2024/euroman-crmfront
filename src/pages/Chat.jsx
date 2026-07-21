@@ -44,6 +44,7 @@ export default function Chat() {
   // Mantener la referencia actualizada para los sockets
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
+    setEditingContactName(false);
   }, [activeChatId]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -51,6 +52,9 @@ export default function Chat() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [editingContactName, setEditingContactName] = useState(false);
+  const [newContactName, setNewContactName] = useState('');
+  const [updatingName, setUpdatingName] = useState(false);
   const fileInputRef = useRef(null);
   
   const messagesEndRef = useRef(null);
@@ -357,7 +361,47 @@ export default function Chat() {
                     )}
                  </div>
                  <div className="flex flex-col">
-                   <h3 className="font-semibold text-[#e9edef] text-[16px]">{getContactDisplayName(activeChat.contacto)}</h3>
+                   <div className="flex items-center gap-2">
+                     {editingContactName ? (
+                       <input 
+                         type="text" 
+                         value={newContactName}
+                         onChange={(e) => setNewContactName(e.target.value)}
+                         className="bg-[#202c33] text-white px-2 py-1 rounded outline-none text-[14px]"
+                         autoFocus
+                         onKeyDown={async (e) => {
+                           if (e.key === 'Enter' && !updatingName) {
+                             setUpdatingName(true);
+                             try {
+                               await api.put(`/contactos/${activeChat.contacto.id}`, { nombre: newContactName.trim() });
+                               setConversaciones(prev => prev.map(c => 
+                                 c.contacto.id === activeChat.contacto.id 
+                                   ? { ...c, contacto: { ...c.contacto, nombre: newContactName.trim() } } 
+                                   : c
+                               ));
+                               setEditingContactName(false);
+                             } catch(err) {
+                               alert('Error al actualizar nombre');
+                             } finally {
+                               setUpdatingName(false);
+                             }
+                           }
+                           if (e.key === 'Escape') setEditingContactName(false);
+                         }}
+                         disabled={updatingName}
+                       />
+                     ) : (
+                       <>
+                         <h3 className="font-semibold text-[#e9edef] text-[16px]">{getContactDisplayName(activeChat.contacto)}</h3>
+                         <button onClick={() => {
+                           setNewContactName(activeChat.contacto.nombre || '');
+                           setEditingContactName(true);
+                         }} className="text-gray-400 hover:text-white" title="Editar nombre">
+                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                         </button>
+                       </>
+                     )}
+                   </div>
                    <span className="text-[13px] text-gray-400">
                      {formatPhoneNumber(activeChat.contacto.telefono?.split('@')[0] || activeChat.contacto.telefono || '')} • Línea: {activeChat.whatsappAccount?.nombre || 'Desconocida'}
                    </span>
