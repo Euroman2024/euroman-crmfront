@@ -35,6 +35,7 @@ const getContactDisplayName = (contacto) => {
 };
 
 export default function Chat() {
+  const [accounts, setAccounts] = useState([]);
   const [conversaciones, setConversaciones] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const activeChatIdRef = useRef(activeChatId);
@@ -121,6 +122,11 @@ export default function Chat() {
   useEffect(() => {
     const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000');
 
+    // Escuchar cambios de estado de las líneas (conexión/desconexión)
+    socket.on('status_changed', ({ accountId, status }) => {
+      setAccounts(prev => prev.map(acc => acc.id === accountId ? { ...acc, estado: status } : acc));
+    });
+
     const handleIncoming = (payload) => {
       const { conversacionId, mensaje } = payload;
       
@@ -174,6 +180,19 @@ export default function Chat() {
       socket.disconnect();
     };
   }, [activeChatId]);
+
+  // Cargar cuentas de Whatsapp para mostrar estado de las líneas (visible para vendedores)
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        const { data } = await api.get('/whatsapp-accounts');
+        setAccounts(data);
+      } catch (error) {
+        console.error("Error al cargar cuentas:", error);
+      }
+    };
+    fetchAccounts();
+  }, []);
 
   // Enviar mensaje
   const handleSend = async (e) => {
@@ -266,6 +285,19 @@ export default function Chat() {
              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M19.005 3.175H4.674C3.642 3.175 3 3.789 3 4.821V21.02l3.544-3.514h12.461c1.033 0 1.664-.596 1.664-1.629V4.821c-.001-1.032-.632-1.646-1.664-1.646zm-4.989 9.869H7.041V11.1h6.975v1.944zm3-4H7.041V7.1h9.975v1.944z"/></svg>
              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7a2 2 0 10-.001-4.001A2 2 0 0012 7zm0 2a2 2 0 10-.001 3.999A2 2 0 0012 9zm0 6a2 2 0 10-.001 3.999A2 2 0 0012 15z"/></svg>
           </div>
+        </div>
+
+        {/* Estado de Líneas (para vendedores) */}
+        <div className="px-4 py-3 border-b border-border bg-background flex gap-2 overflow-x-auto">
+          {accounts.length === 0 ? (
+            <div className="text-gray-500 text-sm">Cargando líneas...</div>
+          ) : (
+            accounts.map(acc => (
+              <div key={acc.id} className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${acc.estado === 'conectado' ? 'bg-green-500/10 text-green-400 border border-green-500/10' : 'bg-red-500/10 text-red-400 border border-red-500/10'}`}>
+                {acc.nombre} • {acc.estado}
+              </div>
+            ))
+          )}
         </div>
 
         {/* Barra de Búsqueda */}
