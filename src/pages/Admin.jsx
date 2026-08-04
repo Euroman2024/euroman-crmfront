@@ -89,6 +89,16 @@ export default function Admin() {
     }
   };
 
+  const forceReset = async (id) => {
+    try {
+      await api.post(`/whatsapp-accounts/${id}/reset`);
+      alert("Reinicio solicitado. Espera unos segundos a que aparezca el nuevo QR.");
+    } catch (error) {
+      console.error(error);
+      alert("Error al intentar reiniciar la conexión.");
+    }
+  };
+
   if (loading) {
     return <div className="text-gray-400">Cargando cuentas...</div>;
   }
@@ -138,11 +148,23 @@ export default function Admin() {
                 <div className="animate-fade-in flex flex-col items-center">
                   <img src={qrs[account.id]} alt="Código QR" className="w-48 h-48 rounded-lg shadow-md mb-3" />
                   <span className="text-xs text-gray-400">Escanea este código con tu celular</span>
+                  <button 
+                    onClick={() => forceReset(account.id)}
+                    className="mt-3 px-3 py-1 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg text-xs transition-colors"
+                  >
+                    ¿No funciona? Forzar nuevo QR
+                  </button>
                 </div>
               ) : (
                 <div className="text-gray-500 flex flex-col items-center">
                   <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                  <span className="text-sm">Generando QR...</span>
+                  <span className="text-sm mb-3">Generando QR...</span>
+                  <button 
+                    onClick={() => forceReset(account.id)}
+                    className="px-3 py-1 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg text-xs transition-colors"
+                  >
+                    ¿Tarda mucho? Forzar nuevo QR
+                  </button>
                 </div>
               )}
             </div>
