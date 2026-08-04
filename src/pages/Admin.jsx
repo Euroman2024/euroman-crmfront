@@ -15,6 +15,13 @@ export default function Admin() {
       try {
         const { data } = await api.get('/whatsapp-accounts');
         setAccounts(data);
+        
+        // Extract initial QRs if they exist
+        const initialQrs = {};
+        data.forEach(acc => {
+          if (acc.qr) initialQrs[acc.id] = acc.qr;
+        });
+        setQrs(initialQrs);
       } catch (error) {
         console.error("Error al cargar cuentas:", error);
       } finally {
