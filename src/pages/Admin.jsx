@@ -28,8 +28,12 @@ export default function Admin() {
   useEffect(() => {
     // URL del backend desde variables de entorno
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api$/, '');
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api\/?$/, '');
+    console.log("Connecting socket to:", socketUrl);
     const socket = io(socketUrl);
+
+    socket.on('connect', () => console.log('Socket connected!', socket.id));
+    socket.on('connect_error', (err) => console.error('Socket connection error:', err));
 
     // Escuchar cuando se genera un QR
     socket.on('qr_generated', ({ accountId, qr }) => {
