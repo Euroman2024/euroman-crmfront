@@ -120,7 +120,9 @@ export default function Chat() {
 
   // Sockets para Tiempo Real
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000');
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api$/, '');
+    const socket = io(socketUrl);
 
     // Escuchar cambios de estado de las líneas (conexión/desconexión)
     socket.on('status_changed', ({ accountId, status }) => {
