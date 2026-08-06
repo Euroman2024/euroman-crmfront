@@ -140,6 +140,8 @@ export default function Chat() {
       // 1. Si es el chat abierto, agregar el mensaje a la vista
       if (activeChatIdRef.current === conversacionId) {
         setMensajes(prev => {
+          // Evitar duplicados
+          if (prev.some(m => m.id === mensaje.id || m.whatsappMsgId === mensaje.whatsappMsgId)) return prev;
           const newMessages = [...prev, mensaje];
           return newMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
         });
@@ -196,7 +198,7 @@ export default function Chat() {
       socket.off('chat_assigned', handleChatAssigned);
       socket.disconnect();
     };
-  }, [activeChatId]);
+  }, []); // Sin dependencias: el socket se crea UNA VEZ y nunca se reconecta al cambiar de chat
 
   // Cargar cuentas de Whatsapp para mostrar estado de las líneas (visible para vendedores)
   useEffect(() => {
