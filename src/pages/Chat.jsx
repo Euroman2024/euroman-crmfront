@@ -361,7 +361,16 @@ export default function Chat() {
                 >
                   <div className="w-12 h-12 bg-gray-600 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xl overflow-hidden">
                     {conv.contacto.fotoPerfilUrl ? (
-                      <img src={conv.contacto.fotoPerfilUrl} alt={contactoNombre} className="w-full h-full object-cover" />
+                      <img 
+                        src={conv.contacto.fotoPerfilUrl} 
+                        alt={contactoNombre} 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => { 
+                          e.target.onerror = null; 
+                          e.target.style.display = 'none'; 
+                          e.target.parentElement.innerHTML = '<span class="text-white font-bold">' + contactoNombre.charAt(0).toUpperCase() + '</span>';
+                        }} 
+                      />
                     ) : (
                       contactoNombre.charAt(0).toUpperCase()
                     )}
@@ -412,7 +421,16 @@ export default function Chat() {
               <div className="flex items-center gap-4">
                  <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
                     {activeChat.contacto.fotoPerfilUrl ? (
-                      <img src={activeChat.contacto.fotoPerfilUrl} alt={getContactDisplayName(activeChat.contacto)} className="w-full h-full object-cover" />
+                      <img 
+                        src={activeChat.contacto.fotoPerfilUrl} 
+                        alt={getContactDisplayName(activeChat.contacto)} 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => { 
+                          e.target.onerror = null; 
+                          e.target.style.display = 'none'; 
+                          e.target.parentElement.innerHTML = '<span class="text-white font-bold">' + getContactDisplayName(activeChat.contacto).charAt(0).toUpperCase() + '</span>';
+                        }}
+                      />
                     ) : (
                       <span className="text-white font-bold">{getContactDisplayName(activeChat.contacto).charAt(0).toUpperCase()}</span>
                     )}
