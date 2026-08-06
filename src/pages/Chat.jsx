@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import api from '../api/axios';
 import EmojiPicker from 'emoji-picker-react';
+import { useAuthStore } from '../store/useAuthStore';
 
 const formatPhoneNumber = (value = '') => {
   const digits = String(value || '').replace(/\D/g, '');
@@ -56,7 +57,11 @@ export default function Chat() {
   const [editingContactName, setEditingContactName] = useState(false);
   const [newContactName, setNewContactName] = useState('');
   const [updatingName, setUpdatingName] = useState(false);
+  const [isInternalNote, setIsInternalNote] = useState(false);
+  const user = useAuthStore(state => state.user);
   const fileInputRef = useRef(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [dialogInput, setDialogInput] = useState('');
   
   const messagesEndRef = useRef(null);
 
@@ -175,12 +180,20 @@ export default function Chat() {
       });
     };
 
+    const handleChatAssigned = ({ conversacionId, asignadoA, usuario, notaAsignacion }) => {
+      setConversaciones(prev => prev.map(c => 
+        c.id === conversacionId ? { ...c, asignadoA, usuario, notaAsignacion } : c
+      ));
+    };
+
     socket.on('new_message', handleIncoming);    // Mensaje del cliente
     socket.on('message_sent', handleIncoming);   // Mensaje nuestro enviado (quizás por otro vendedor)
+    socket.on('chat_assigned', handleChatAssigned);
 
     return () => {
       socket.off('new_message', handleIncoming);
       socket.off('message_sent', handleIncoming);
+      socket.off('chat_assigned', handleChatAssigned);
       socket.disconnect();
     };
   }, [activeChatId]);
@@ -205,7 +218,8 @@ export default function Chat() {
 
     const payload = {
       conversacionId: activeChatId,
-      contenido: inputText
+      contenido: inputText,
+      isInternalNote: isInternalNote
     };
     
     if (replyingTo) {
@@ -219,6 +233,7 @@ export default function Chat() {
       // Limpiamos el texto y la respuesta
       setInputText('');
       setReplyingTo(null);
+      setIsInternalNote(false);
     } catch (error) {
       console.error("Error al enviar mensaje:", error);
       alert("Error al enviar el mensaje. Verifica si el número está conectado.");
@@ -353,8 +368,14 @@ export default function Chat() {
                   </div>
                   <div className="flex-1 overflow-hidden border-b border-border/50 pb-3 -mb-3 pt-1">
                     <div className="flex justify-between items-baseline mb-0.5">
-                      <h4 className={`text-[16px] truncate ${conv.estado === 'nuevo' ? 'text-white font-semibold' : 'text-[#e9edef]'}`}>
-                        {contactoNombre}
+                      <h4 className={`text-[16px] flex items-center gap-2 truncate ${conv.estado === 'nuevo' ? 'text-white font-semibold' : 'text-[#e9edef]'}`}>
+                        <span className="truncate">{contactoNombre}</span>
+                        {conv.asignadoA && (
+                          <span className="shrink-0 text-[10px] bg-[#202c33] text-gray-400 px-1.5 py-0.5 rounded flex items-center" title={`Atendido por ${conv.usuario?.nombre || 'Vendedor'}${conv.notaAsignacion ? ` - ${conv.notaAsignacion}` : ''}`}>
+                            <svg className="w-3 h-3 text-primary mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            {conv.usuario?.nombre?.split(' ')[0] || 'Vendedor'}
+                          </span>
+                        )}
                       </h4>
                       <span className={`text-[12px] whitespace-nowrap ml-2 ${conv.estado === 'nuevo' ? 'text-primary font-semibold' : 'text-gray-400'}`}>
                         {lastMessageData ? new Date(lastMessageData.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -443,9 +464,72 @@ export default function Chat() {
                    </span>
                  </div>
               </div>
-              <div className="flex gap-4 text-gray-400">
-                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M15.9 14.3H15l-.3-.3c1-1.1 1.6-2.7 1.6-4.3 0-3.7-3-6.7-6.7-6.7S3 6 3 9.7s3 6.7 6.7 6.7c1.6 0 3.2-.6 4.3-1.6l.3.3v.8l5.1 5.1 1.5-1.5-5-5.2zm-6.2 0c-2.6 0-4.6-2.1-4.6-4.6s2.1-4.6 4.6-4.6 4.6 2.1 4.6 4.6-2.1 4.6-4.6 4.6z"/></svg>
-                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7a2 2 0 10-.001-4.001A2 2 0 0012 7zm0 2a2 2 0 10-.001 3.999A2 2 0 0012 9zm0 6a2 2 0 10-.001 3.999A2 2 0 0012 15z"/></svg>
+              <div className="flex gap-4 items-center">
+                 {activeChat.asignadoA ? (
+                   <span className="text-[13px] px-3 py-1 rounded bg-[#202c33] text-gray-300 flex items-center gap-2">
+                     <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                     <div className="flex flex-col">
+                       <span>Atendido por: {activeChat.usuario?.nombre || 'Usuario'}</span>
+                       {activeChat.notaAsignacion && <span className="text-[11px] text-gray-400 font-normal">{activeChat.notaAsignacion}</span>}
+                     </div>
+                     {activeChat.asignadoA !== user?.id ? (
+                       <button 
+                         onClick={() => {
+                           setDialogInput('');
+                           setConfirmDialog({
+                             message: "Este chat ya está siendo atendido. ¿Estás seguro de que deseas tomarlo?",
+                             withInput: true,
+                             inputPlaceholder: "Escribe una nota breve (ej. 'Atendiendo por repuestos')",
+                             onConfirm: async (nota) => {
+                               await api.put(`/conversaciones/${activeChat.id}`, { asignadoA: user.id, notaAsignacion: nota });
+                             }
+                           });
+                         }}
+                         className="ml-2 text-primary hover:text-white"
+                         title="Tomar chat (Quitar a otro usuario)"
+                       >
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                       </button>
+                     ) : (
+                       <button 
+                         onClick={() => {
+                           setConfirmDialog({
+                             message: "¿Deseas soltar este chat para que otro vendedor pueda tomarlo?",
+                             onConfirm: async () => {
+                               await api.put(`/conversaciones/${activeChat.id}`, { asignadoA: null, notaAsignacion: null });
+                             }
+                           });
+                         }}
+                         className="ml-2 text-red-400 hover:text-red-300 flex items-center"
+                         title="Soltar chat"
+                       >
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                       </button>
+                     )}
+                   </span>
+                 ) : (
+                   <button 
+                     onClick={() => {
+                       setDialogInput('');
+                       setConfirmDialog({
+                         message: "¿Deseas tomar este chat?",
+                         withInput: true,
+                         inputPlaceholder: "Escribe una nota breve (ej. 'Atendiendo por repuestos')",
+                         onConfirm: async (nota) => {
+                           await api.put(`/conversaciones/${activeChat.id}`, { asignadoA: user.id, notaAsignacion: nota });
+                         }
+                       });
+                     }}
+                     className="text-[13px] px-3 py-1.5 rounded bg-primary text-background font-bold hover:bg-opacity-80 transition-colors flex items-center gap-2"
+                   >
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                     Tomar Chat
+                   </button>
+                 )}
+                 <div className="flex gap-4 text-gray-400 ml-4">
+                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M15.9 14.3H15l-.3-.3c1-1.1 1.6-2.7 1.6-4.3 0-3.7-3-6.7-6.7-6.7S3 6 3 9.7s3 6.7 6.7 6.7c1.6 0 3.2-.6 4.3-1.6l.3.3v.8l5.1 5.1 1.5-1.5-5-5.2zm-6.2 0c-2.6 0-4.6-2.1-4.6-4.6s2.1-4.6 4.6-4.6 4.6 2.1 4.6 4.6-2.1 4.6-4.6 4.6z"/></svg>
+                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7a2 2 0 10-.001-4.001A2 2 0 0012 7zm0 2a2 2 0 10-.001 3.999A2 2 0 0012 9zm0 6a2 2 0 10-.001 3.999A2 2 0 0012 15z"/></svg>
+                </div>
               </div>
             </div>
 
@@ -458,12 +542,20 @@ export default function Chat() {
               ) : (
                 mensajes.map((msg) => {
                   const isOutgoing = msg.tipo === 'outgoing';
+                  const isInternal = msg.mimetype === 'internal-note';
+                  const isSticker = msg.mimetype === 'image/webp';
                   return (
                     <div key={msg.id} className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'} group`}>
-                      <div className={`relative max-w-[85%] md:max-w-[70%] px-2.5 py-1.5 rounded-lg shadow-sm ${
-                        isOutgoing 
-                          ? 'bg-bubble-out text-[#e9edef] rounded-tr-none' 
-                          : 'bg-bubble-in text-[#e9edef] rounded-tl-none'
+                      <div className={`relative max-w-[85%] md:max-w-[70%] rounded-lg ${
+                        isSticker
+                          ? 'bg-transparent'
+                          : `px-2.5 py-1.5 shadow-sm ${
+                              isInternal
+                                ? 'bg-yellow-100 text-yellow-900 rounded-tr-none border border-yellow-200'
+                                : isOutgoing 
+                                  ? 'bg-bubble-out text-[#e9edef] rounded-tr-none' 
+                                  : 'bg-bubble-in text-[#e9edef] rounded-tl-none'
+                            }`
                       }`}>
                         {/* Botón Flotante para Responder */}
                         <button 
@@ -475,12 +567,25 @@ export default function Chat() {
                         </button>
 
                         {/* Triangulito simulado */}
-                        <div className={`absolute top-0 w-2 h-3 ${isOutgoing ? '-right-2 text-bubble-out' : '-left-2 text-bubble-in'}`}>
-                           <svg viewBox="0 0 8 13" width="8" height="13"><path opacity=".13" fill="#0000000" d="M1.533 3.568L8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path><path fill="currentColor" d="M1.533 2.568L8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path></svg>
-                        </div>
+                        {!isSticker && (
+                          <div className={`absolute top-0 w-2 h-3 ${isOutgoing ? '-right-2 text-bubble-out' : '-left-2 text-bubble-in'} ${isInternal ? '!text-yellow-100' : ''}`}>
+                             <svg viewBox="0 0 8 13" width="8" height="13"><path opacity=".13" fill="#0000000" d="M1.533 3.568L8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path><path fill="currentColor" d="M1.533 2.568L8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path></svg>
+                          </div>
+                        )}
+                        
+                        {isInternal && (
+                          <div className="flex items-center gap-1 mb-1 text-yellow-700 text-[11px] font-bold uppercase tracking-wider border-b border-yellow-200/50 pb-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Nota Interna
+                          </div>
+                        )}
                         
                         {msg.archivoUrl && msg.mimetype?.startsWith('image/') && (
-                          <img src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} alt="Adjunto" className="max-w-full rounded-md mb-1" />
+                          <img 
+                            src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} 
+                            alt="Adjunto" 
+                            className={msg.mimetype === 'image/webp' ? "w-32 h-32 object-contain mb-1 drop-shadow-md bg-transparent" : "max-w-full rounded-md mb-1"} 
+                          />
                         )}
                         {msg.archivoUrl && msg.mimetype?.startsWith('audio/') && (
                           <audio src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls className="max-w-full mb-1 h-10" />
@@ -507,10 +612,12 @@ export default function Chat() {
                           </div>
                         )}
 
-                        <p className="text-[14.5px] whitespace-pre-wrap leading-relaxed pr-10">{msg.contenido}</p>
-                        <span className="text-[11px] text-gray-400 absolute bottom-1.5 right-2 leading-none">
+                        {!isSticker && msg.contenido && !['[image]', '[video]', '[audio]', '[document]', '[sticker]'].includes(msg.contenido) && (
+                          <p className={`text-[14.5px] whitespace-pre-wrap leading-relaxed pr-10 ${isInternal ? 'text-yellow-900' : ''}`}>{msg.contenido}</p>
+                        )}
+                        <span className={`text-[11px] absolute bottom-1.5 right-2 leading-none ${isSticker ? 'text-white drop-shadow-md bg-black/40 px-1.5 py-0.5 rounded-full' : isInternal ? 'text-yellow-700' : 'text-gray-400'}`}>
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          {isOutgoing && (
+                          {isOutgoing && !isInternal && (
                              <svg className="inline-block w-[15px] h-[15px] ml-1 text-gray-400" fill="currentColor" viewBox="0 0 16 15"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"/></svg>
                           )}
                         </span>
@@ -557,6 +664,13 @@ export default function Chat() {
                     </div>
                   )}
                   <button 
+                    onClick={() => setIsInternalNote(!isInternalNote)}
+                    className={`${isInternalNote ? 'text-yellow-500' : 'text-gray-400'} hover:text-yellow-400 transition-colors ml-2`}
+                    title="Nota Interna (Sólo visible para vendedores)"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                  </button>
+                  <button 
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                     className={`${showEmojiPicker ? 'text-primary' : 'text-gray-400'} hover:text-white transition-colors`}
                   >
@@ -576,14 +690,16 @@ export default function Chat() {
                   >
                      <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M1.816 15.556v.002c0 1.502.584 2.912 1.646 3.972s2.472 1.647 3.974 1.647a5.58 5.58 0 003.972-1.645l9.547-9.548c.769-.768 1.147-1.767 1.058-2.817-.079-.968-.548-1.927-1.319-2.698-1.594-1.592-4.068-1.711-5.517-.262l-7.916 7.915c-.881.881-.792 2.25.214 3.261.959.958 2.423 1.053 3.263.215l5.511-5.512c.28-.28.267-.722.053-.936l-.244-.244c-.191-.191-.567-.349-.957.04l-5.506 5.506c-.18.18-.635.127-.976-.214-.098-.097-.576-.613-.213-.973l7.915-7.917c.818-.817 2.267-.699 3.23.262.5.501.802 1.1.849 1.685.051.573-.156 1.111-.589 1.543l-9.547 9.549a3.97 3.97 0 01-2.829 1.171 3.975 3.975 0 01-2.83-1.173 3.973 3.973 0 01-1.172-2.828c0-1.071.415-2.076 1.172-2.83l7.209-7.211c.157-.157.264-.579.028-.814L11.5 4.36a.572.572 0 00-.834.018l-7.205 7.207a5.577 5.577 0 00-1.645 3.971z"/></svg>
                   </button>
-                  <form className="flex-1" onSubmit={handleSend}>
+                  <form className="flex-1 relative" onSubmit={handleSend}>
                     <input 
                       type="text" 
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      placeholder={sending ? "Enviando..." : "Escribe un mensaje"}
+                      placeholder={sending ? "Enviando..." : isInternalNote ? "Escribe una nota interna..." : "Escribe un mensaje"}
                       disabled={sending}
-                      className="w-full bg-hover rounded-lg px-4 py-2.5 text-[15px] text-[#e9edef] focus:outline-none placeholder-gray-400 disabled:opacity-50"
+                      className={`w-full bg-hover rounded-lg px-4 py-2.5 text-[15px] focus:outline-none disabled:opacity-50 transition-colors ${
+                        isInternalNote ? 'bg-yellow-900/20 text-yellow-500 placeholder-yellow-700/50' : 'text-[#e9edef] placeholder-gray-400'
+                      }`}
                     />
                   </form>
                   {inputText.trim() ? (
@@ -619,6 +735,55 @@ export default function Chat() {
         )}
       </div>
 
+      {/* Modal de Confirmación Custom */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
+          <div className="bg-[#111b21] border border-border/50 p-6 rounded-2xl shadow-2xl w-[90%] max-w-md transform transition-all">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-[#e9edef] mb-2">
+                Confirmación requerida
+              </h3>
+              <p className="text-gray-300 mb-6 leading-relaxed text-sm">
+                {confirmDialog.message}
+              </p>
+              
+              {confirmDialog.withInput && (
+                <input
+                  type="text"
+                  value={dialogInput}
+                  onChange={(e) => setDialogInput(e.target.value)}
+                  placeholder={confirmDialog.inputPlaceholder || "Escribe algo..."}
+                  className="w-full bg-[#202c33] text-white px-4 py-2.5 rounded-lg mb-6 outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary transition-all text-sm"
+                  autoFocus
+                />
+              )}
+
+              <div className="flex justify-end gap-3 w-full">
+                <button
+                  onClick={() => setConfirmDialog(null)}
+                  className="flex-1 px-4 py-2.5 rounded-xl font-medium text-gray-300 hover:bg-[#202c33] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    await confirmDialog.onConfirm(dialogInput);
+                    setConfirmDialog(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 rounded-xl font-medium bg-primary text-background hover:bg-opacity-90 transition-colors shadow-lg shadow-primary/30"
+                >
+                  Aceptar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
