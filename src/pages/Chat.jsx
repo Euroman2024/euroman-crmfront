@@ -154,6 +154,8 @@ export default function Chat() {
             updated[idx].updatedAt = mensaje.createdAt;
             if (mensaje.tipo === 'incoming' && activeChatIdRef.current !== conversacionId) {
               updated[idx].estado = 'nuevo';
+            } else if (mensaje.tipo === 'outgoing') {
+              updated[idx].estado = 'leido';
             }
             const [moved] = updated.splice(idx, 1);
             return [moved, ...updated];
