@@ -297,7 +297,7 @@ export default function Chat() {
     <div className="flex h-full w-full bg-background overflow-hidden animate-fade-in">
       
       {/* SIDEBAR IZQUIERDO */}
-      <div className="w-[30%] min-w-[350px] max-w-[420px] border-r border-border bg-background flex flex-col z-10">
+      <div className={`${activeChatId ? 'hidden md:flex' : 'flex'} w-full md:w-[30%] md:min-w-[350px] md:max-w-[420px] border-r border-border bg-background flex-col z-10`}>
         
         {/* Cabecera del Sidebar */}
         <div className="h-16 px-4 bg-surface flex items-center justify-end border-b border-border">
@@ -411,7 +411,7 @@ export default function Chat() {
       </div>
 
       {/* ÁREA CENTRAL */}
-      <div className="flex-1 flex flex-col relative bg-[#0b141a]">
+      <div className={`${!activeChatId ? 'hidden md:flex' : 'flex'} flex-1 flex-col relative bg-[#0b141a]`}>
         
         {/* Capa del Fondo Doodle */}
         <div className="absolute inset-0 bg-wa-doodle z-0"></div>
@@ -419,9 +419,12 @@ export default function Chat() {
         {activeChat ? (
           <>
             {/* Cabecera del Chat */}
-            <div className="h-16 px-4 bg-surface border-l border-border flex justify-between items-center z-10 w-full">
-              <div className="flex items-center gap-4">
-                 <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
+            <div className="h-16 px-2 md:px-4 bg-surface border-l border-border flex justify-between items-center z-10 w-full">
+              <div className="flex items-center gap-2 md:gap-4">
+                 <button onClick={() => setActiveChatId(null)} className="md:hidden text-gray-400 hover:text-white flex-shrink-0" title="Volver">
+                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
+                 </button>
+                 <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                     {activeChat.contacto.fotoPerfilUrl ? (
                       <img 
                         src={activeChat.contacto.fotoPerfilUrl} 
@@ -671,7 +674,7 @@ export default function Chat() {
             )}
 
             {/* Input de Envío */}
-            <div className="h-16 px-4 bg-surface flex items-center gap-4 z-10 w-full relative">
+            <div className="h-16 px-2 md:px-4 bg-surface flex items-center gap-2 md:gap-4 z-10 w-full relative">
               {activeChat.whatsappAccount?.estado === 'conectado' ? (
                 <>
                   {showEmojiPicker && (

@@ -35,7 +35,7 @@ export default function Login() {
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/20 rounded-full blur-[100px]" />
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-accent/20 rounded-full blur-[100px]" />
 
-      <div className="w-full max-w-md bg-surface/60 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl z-10 animate-slide-up">
+      <div className="w-full max-w-md bg-surface/60 backdrop-blur-xl border border-white/10 p-6 md:p-8 rounded-3xl shadow-2xl z-10 animate-slide-up mx-auto">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
