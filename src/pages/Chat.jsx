@@ -62,6 +62,10 @@ export default function Chat() {
   const fileInputRef = useRef(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [dialogInput, setDialogInput] = useState('');
+  const [fullscreenMedia, setFullscreenMedia] = useState(null);
+  const [forwardMessage, setForwardMessage] = useState(null);
+  const [forwardSearch, setForwardSearch] = useState('');
+  const [selectedForwardChats, setSelectedForwardChats] = useState([]);
   
   const messagesEndRef = useRef(null);
 
@@ -243,6 +247,28 @@ export default function Chat() {
       setSending(false);
     }
   };
+  const handleForwardMessage = async () => {
+    if (!forwardMessage || selectedForwardChats.length === 0) return;
+    try {
+      setSending(true);
+      await api.post('/messages/forward', {
+        sourceMessageId: forwardMessage.id,
+        targetConversacionIds: selectedForwardChats
+      });
+      setForwardMessage(null);
+      setSelectedForwardChats([]);
+    } catch (error) {
+      console.error("Error reenviando mensaje:", error);
+      alert("Error al reenviar el mensaje.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const filteredForwardChats = conversaciones.filter(c => 
+    c.contacto?.nombre?.toLowerCase().includes(forwardSearch.toLowerCase()) ||
+    c.contacto?.telefono?.includes(forwardSearch)
+  );
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -580,14 +606,23 @@ export default function Chat() {
                                   : 'bg-bubble-in text-[#e9edef] rounded-tl-none'
                             }`
                       }`}>
-                        {/* Botón Flotante para Responder */}
-                        <button 
-                          onClick={() => setReplyingTo(msg)}
-                          className={`absolute top-1 ${isOutgoing ? 'left-[-35px]' : 'right-[-35px]'} opacity-0 group-hover:opacity-100 transition-opacity bg-surface p-1.5 rounded-full text-gray-400 hover:text-white shadow-md z-10`}
-                          title="Responder a este mensaje"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
-                        </button>
+                        {/* Botones Flotantes (Responder y Reenviar) */}
+                        <div className={`absolute top-1 ${isOutgoing ? 'left-[-70px]' : 'right-[-70px]'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10`}>
+                          <button 
+                            onClick={() => setForwardMessage(msg)}
+                            className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-white shadow-md"
+                            title="Reenviar mensaje"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                          </button>
+                          <button 
+                            onClick={() => setReplyingTo(msg)}
+                            className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-white shadow-md"
+                            title="Responder a este mensaje"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                          </button>
+                        </div>
 
                         {/* Triangulito simulado */}
                         {!isSticker && (
@@ -607,14 +642,16 @@ export default function Chat() {
                           <img 
                             src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} 
                             alt="Adjunto" 
-                            className={msg.mimetype === 'image/webp' ? "w-32 h-32 object-contain mb-1 drop-shadow-md bg-transparent" : "max-w-full max-h-[350px] w-auto object-cover md:object-contain rounded-md mb-1"} 
+                            onLoad={scrollToBottom}
+                            onClick={() => !isSticker && setFullscreenMedia(`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`)}
+                            className={msg.mimetype === 'image/webp' ? "w-32 h-32 object-contain mb-1 drop-shadow-md bg-transparent" : "max-w-full max-h-[350px] w-auto object-cover md:object-contain rounded-md mb-1 cursor-pointer hover:opacity-90 transition-opacity"} 
                           />
                         )}
                         {msg.archivoUrl && msg.mimetype?.startsWith('audio/') && (
-                          <audio src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls className="max-w-full mb-1 h-10 w-[250px]" />
+                          <audio src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls onLoadedData={scrollToBottom} className="max-w-full mb-1 h-10 w-[250px]" />
                         )}
                         {msg.archivoUrl && msg.mimetype?.startsWith('video/') && (
-                          <video src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls className="max-w-full max-h-[350px] w-auto rounded-md mb-1" />
+                          <video src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls onLoadedData={scrollToBottom} className="max-w-full max-h-[350px] w-auto rounded-md mb-1" />
                         )}
                         {msg.archivoUrl && !msg.mimetype?.startsWith('image/') && !msg.mimetype?.startsWith('audio/') && !msg.mimetype?.startsWith('video/') && (
                           <a href={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-black/20 p-2 rounded-lg mb-1 text-sm hover:bg-black/30 transition-colors text-white break-all">
@@ -815,6 +852,90 @@ export default function Chat() {
                   Aceptar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Imagen en Pantalla Completa (Lightbox) */}
+      {fullscreenMedia && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-300">
+          <button 
+            onClick={() => setFullscreenMedia(null)}
+            className="absolute top-4 right-4 md:top-6 md:right-6 text-white/70 hover:text-white p-2 bg-black/50 hover:bg-black/80 rounded-full transition-all"
+          >
+            <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+          
+          <img 
+            src={fullscreenMedia} 
+            alt="Media en pantalla completa" 
+            className="max-w-[95vw] max-h-[95vh] object-contain rounded-lg shadow-2xl"
+          />
+        </div>
+      )}
+
+      {/* Modal de Reenviar Mensaje */}
+      {forwardMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
+          <div className="bg-[#111b21] border border-border/50 rounded-2xl shadow-2xl w-[90%] max-w-md h-[80vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-border bg-surface flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-[#e9edef]">Reenviar mensaje</h3>
+              <button onClick={() => { setForwardMessage(null); setSelectedForwardChats([]); }} className="text-gray-400 hover:text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            
+            <div className="p-3 border-b border-border">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd"></path></svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Buscar contacto..."
+                  value={forwardSearch}
+                  onChange={(e) => setForwardSearch(e.target.value)}
+                  className="w-full bg-[#202c33] text-[#e9edef] placeholder-gray-400 border border-transparent rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {filteredForwardChats.map(chat => (
+                <div 
+                  key={chat.id} 
+                  onClick={() => {
+                    if (selectedForwardChats.includes(chat.id)) {
+                      setSelectedForwardChats(selectedForwardChats.filter(id => id !== chat.id));
+                    } else {
+                      setSelectedForwardChats([...selectedForwardChats, chat.id]);
+                    }
+                  }}
+                  className="flex items-center p-3 hover:bg-[#202c33] rounded-lg cursor-pointer transition-colors"
+                >
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 ${selectedForwardChats.includes(chat.id) ? 'bg-primary border-primary' : 'border-gray-500'}`}>
+                    {selectedForwardChats.includes(chat.id) && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>}
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center text-white font-bold mr-3">
+                    {chat.contacto?.nombre ? chat.contacto.nombre.charAt(0).toUpperCase() : '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[#e9edef] font-medium truncate">{chat.contacto?.nombre || chat.contacto?.telefono}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-border bg-surface flex justify-between items-center">
+              <span className="text-sm text-gray-400">{selectedForwardChats.length} seleccionados</span>
+              <button 
+                onClick={handleForwardMessage}
+                disabled={selectedForwardChats.length === 0 || sending}
+                className="bg-primary hover:bg-primary/90 text-white w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </button>
             </div>
           </div>
         </div>
