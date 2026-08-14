@@ -5,8 +5,10 @@
 @config "../tailwind.config.js";
 
 @layer base {
-  body {
-    @apply bg-background text-[#e9edef] antialiased font-sans;
+  html, body {
+    @apply bg-[#0b141a] text-[#e9edef] antialiased font-sans;
+    overscroll-behavior-y: none;
+    background-color: #0b141a;
   }
 }
 

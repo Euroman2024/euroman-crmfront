@@ -411,7 +411,7 @@ export default function Chat() {
       </div>
 
       {/* ÁREA CENTRAL */}
-      <div className={`${!activeChatId ? 'hidden md:flex' : 'flex'} flex-1 flex-col relative bg-[#0b141a]`}>
+      <div className={`${!activeChatId ? 'hidden md:flex' : 'flex'} flex-1 flex-col relative bg-[#0b141a] min-w-0`}>
         
         {/* Capa del Fondo Doodle */}
         <div className="absolute inset-0 bg-wa-doodle z-0"></div>
@@ -419,12 +419,12 @@ export default function Chat() {
         {activeChat ? (
           <>
             {/* Cabecera del Chat */}
-            <div className="h-16 px-2 md:px-4 bg-surface border-l border-border flex justify-between items-center z-10 w-full">
-              <div className="flex items-center gap-2 md:gap-4">
-                 <button onClick={() => setActiveChatId(null)} className="md:hidden text-gray-400 hover:text-white flex-shrink-0" title="Volver">
+            <div className="h-16 px-1 md:px-4 bg-surface border-l border-border flex justify-between items-center z-10 w-full min-w-0">
+              <div className="flex items-center gap-1 md:gap-4 min-w-0 flex-1">
+                 <button onClick={() => setActiveChatId(null)} className="md:hidden text-gray-400 hover:text-white flex-shrink-0 p-1" title="Volver">
                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
                  </button>
-                 <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                 <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                     {activeChat.contacto.fotoPerfilUrl ? (
                       <img 
                         src={activeChat.contacto.fotoPerfilUrl} 
@@ -440,14 +440,14 @@ export default function Chat() {
                       <span className="text-white font-bold">{getContactDisplayName(activeChat.contacto).charAt(0).toUpperCase()}</span>
                     )}
                  </div>
-                 <div className="flex flex-col">
-                   <div className="flex items-center gap-2">
+                 <div className="flex flex-col min-w-0">
+                   <div className="flex items-center gap-2 min-w-0">
                      {editingContactName ? (
                        <input 
                          type="text" 
                          value={newContactName}
                          onChange={(e) => setNewContactName(e.target.value)}
-                         className="bg-[#202c33] text-white px-2 py-1 rounded outline-none text-[14px]"
+                         className="bg-[#202c33] text-white px-2 py-1 rounded outline-none text-[14px] w-full max-w-[150px]"
                          autoFocus
                          onKeyDown={async (e) => {
                            if (e.key === 'Enter' && !updatingName) {
@@ -472,28 +472,28 @@ export default function Chat() {
                        />
                      ) : (
                        <>
-                         <h3 className="font-semibold text-[#e9edef] text-[16px]">{getContactDisplayName(activeChat.contacto)}</h3>
+                         <h3 className="font-semibold text-[#e9edef] text-[14px] md:text-[16px] truncate">{getContactDisplayName(activeChat.contacto)}</h3>
                          <button onClick={() => {
                            setNewContactName(activeChat.contacto.nombre || '');
                            setEditingContactName(true);
-                         }} className="text-gray-400 hover:text-white" title="Editar nombre">
+                         }} className="text-gray-400 hover:text-white flex-shrink-0" title="Editar nombre">
                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                          </button>
                        </>
                      )}
                    </div>
-                   <span className="text-[13px] text-gray-400">
-                     {formatPhoneNumber(activeChat.contacto.telefono?.split('@')[0] || activeChat.contacto.telefono || '')} • Línea: {activeChat.whatsappAccount?.nombre || 'Desconocida'}
+                   <span className="text-[11px] md:text-[13px] text-gray-400 truncate">
+                     {formatPhoneNumber(activeChat.contacto.telefono?.split('@')[0] || activeChat.contacto.telefono || '')} <span className="hidden sm:inline">• Línea: {activeChat.whatsappAccount?.nombre || 'Desconocida'}</span>
                    </span>
                  </div>
               </div>
-              <div className="flex gap-4 items-center">
+              <div className="flex gap-2 md:gap-4 items-center min-w-0 flex-shrink ml-2 max-w-[50%] md:max-w-none">
                  {activeChat.asignadoA ? (
-                   <span className="text-[13px] px-3 py-1 rounded bg-[#202c33] text-gray-300 flex items-center gap-2">
-                     <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                     <div className="flex flex-col">
-                       <span>Atendido por: {activeChat.usuario?.nombre || 'Usuario'}</span>
-                       {activeChat.notaAsignacion && <span className="text-[11px] text-gray-400 font-normal">{activeChat.notaAsignacion}</span>}
+                   <span className="text-[12px] md:text-[13px] px-2 py-1 md:px-3 rounded bg-[#202c33] text-gray-300 flex items-center gap-1.5 md:gap-2 min-w-0">
+                     <svg className="w-4 h-4 text-primary flex-shrink-0 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                     <div className="flex flex-col min-w-0">
+                       <span className="truncate font-medium text-[11px] md:text-[13px]">{activeChat.usuario?.nombre || 'Usuario'}</span>
+                       {activeChat.notaAsignacion && <span className="text-[10px] md:text-[11px] text-gray-400 font-normal truncate">{activeChat.notaAsignacion}</span>}
                      </div>
                      {activeChat.asignadoA !== user?.id ? (
                        <button 
@@ -557,7 +557,7 @@ export default function Chat() {
             </div>
 
             {/* Historial de Mensajes */}
-            <div className="flex-1 overflow-y-auto p-4 md:px-[5%] lg:px-[10%] space-y-2 z-10 flex flex-col">
+            <div className="flex-1 overflow-y-auto p-4 md:px-[5%] lg:px-[10%] space-y-2 z-10 flex flex-col min-w-0 overflow-x-hidden">
               {loadingMessages ? (
                 <div className="text-center text-gray-500 mt-10">Cargando mensajes...</div>
               ) : mensajes.length === 0 ? (
@@ -568,8 +568,8 @@ export default function Chat() {
                   const isInternal = msg.mimetype === 'internal-note';
                   const isSticker = msg.mimetype === 'image/webp';
                   return (
-                    <div key={msg.id} className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'} group`}>
-                      <div className={`relative max-w-[85%] md:max-w-[70%] rounded-lg ${
+                    <div key={msg.id} className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'} group w-full mb-1`}>
+                      <div className={`relative max-w-[85%] md:max-w-[70%] rounded-lg break-words ${
                         isSticker
                           ? 'bg-transparent'
                           : `px-2.5 py-1.5 shadow-sm ${
@@ -607,18 +607,18 @@ export default function Chat() {
                           <img 
                             src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} 
                             alt="Adjunto" 
-                            className={msg.mimetype === 'image/webp' ? "w-32 h-32 object-contain mb-1 drop-shadow-md bg-transparent" : "max-w-full rounded-md mb-1"} 
+                            className={msg.mimetype === 'image/webp' ? "w-32 h-32 object-contain mb-1 drop-shadow-md bg-transparent" : "max-w-full max-h-[350px] w-auto object-cover md:object-contain rounded-md mb-1"} 
                           />
                         )}
                         {msg.archivoUrl && msg.mimetype?.startsWith('audio/') && (
-                          <audio src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls className="max-w-full mb-1 h-10" />
+                          <audio src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls className="max-w-full mb-1 h-10 w-[250px]" />
                         )}
                         {msg.archivoUrl && msg.mimetype?.startsWith('video/') && (
-                          <video src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls className="max-w-full rounded-md mb-1" />
+                          <video src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls className="max-w-full max-h-[350px] w-auto rounded-md mb-1" />
                         )}
                         {msg.archivoUrl && !msg.mimetype?.startsWith('image/') && !msg.mimetype?.startsWith('audio/') && !msg.mimetype?.startsWith('video/') && (
-                          <a href={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-black/20 p-2 rounded-lg mb-1 text-sm hover:bg-black/30 transition-colors text-white">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                          <a href={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-black/20 p-2 rounded-lg mb-1 text-sm hover:bg-black/30 transition-colors text-white break-all">
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                             Descargar Archivo
                           </a>
                         )}
@@ -636,7 +636,7 @@ export default function Chat() {
                         )}
 
                         {!isSticker && msg.contenido && !['[image]', '[video]', '[audio]', '[document]', '[sticker]'].includes(msg.contenido) && (
-                          <p className={`text-[14.5px] whitespace-pre-wrap leading-relaxed pr-10 ${isInternal ? 'text-yellow-900' : ''}`}>{msg.contenido}</p>
+                          <p className={`text-[14.5px] whitespace-pre-wrap break-words leading-relaxed pr-10 ${isInternal ? 'text-yellow-900' : ''}`}>{msg.contenido}</p>
                         )}
                         <span className={`text-[11px] absolute bottom-1.5 right-2 leading-none ${isSticker ? 'text-white drop-shadow-md bg-black/40 px-1.5 py-0.5 rounded-full' : isInternal ? 'text-yellow-700' : 'text-gray-400'}`}>
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -674,7 +674,7 @@ export default function Chat() {
             )}
 
             {/* Input de Envío */}
-            <div className="h-16 px-2 md:px-4 bg-surface flex items-center gap-2 md:gap-4 z-10 w-full relative">
+            <div className="min-h-[64px] px-1 md:px-4 py-1.5 md:py-0 bg-surface flex items-center gap-1 md:gap-4 z-10 w-full relative flex-wrap sm:flex-nowrap">
               {activeChat.whatsappAccount?.estado === 'conectado' ? (
                 <>
                   {showEmojiPicker && (
@@ -686,18 +686,19 @@ export default function Chat() {
                       />
                     </div>
                   )}
-                  <button 
-                    onClick={() => setIsInternalNote(!isInternalNote)}
-                    className={`${isInternalNote ? 'text-yellow-500' : 'text-gray-400'} hover:text-yellow-400 transition-colors ml-2`}
-                    title="Nota Interna (Sólo visible para vendedores)"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                  </button>
+                  <div className="flex items-center gap-1 md:gap-2">
+                    <button 
+                      onClick={() => setIsInternalNote(!isInternalNote)}
+                      className={`${isInternalNote ? 'text-yellow-500' : 'text-gray-400'} hover:text-yellow-400 transition-colors p-1.5`}
+                      title="Nota Interna (Sólo visible para vendedores)"
+                    >
+                      <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </button>
                   <button 
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className={`${showEmojiPicker ? 'text-primary' : 'text-gray-400'} hover:text-white transition-colors`}
+                    className={`${showEmojiPicker ? 'text-primary' : 'text-gray-400'} hover:text-white transition-colors p-1.5`}
                   >
-                     <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M9.153 11.603c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zm-3.204 1.362c-.026-.307-.131 5.218 6.063 5.551 6.066-.25 6.066-5.551 6.066-5.551-6.078 1.416-12.129 0-12.129 0zm11.363-1.108s-.669 1.959-5.051 1.959c-3.379 0-5.353-1.959-5.353-1.959s5.897-1.15 10.404 0zM11.804 1.011C5.609 1.011.978 6.033.978 12.228s4.826 10.761 11.021 10.761S23.02 18.423 23.02 12.228c.001-6.195-5.021-11.217-11.216-11.217zM12 21.354c-5.273 0-9.381-3.886-9.381-9.159s3.942-9.548 9.215-9.548 9.548 4.275 9.548 9.548c-.001 5.272-4.109 9.159-9.382 9.159zm3.108-9.751c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962z"/></svg>
+                     <svg className="w-6 h-6 md:w-7 md:h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M9.153 11.603c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zm-3.204 1.362c-.026-.307-.131 5.218 6.063 5.551 6.066-.25 6.066-5.551 6.066-5.551-6.078 1.416-12.129 0-12.129 0zm11.363-1.108s-.669 1.959-5.051 1.959c-3.379 0-5.353-1.959-5.353-1.959s5.897-1.15 10.404 0zM11.804 1.011C5.609 1.011.978 6.033.978 12.228s4.826 10.761 11.021 10.761S23.02 18.423 23.02 12.228c.001-6.195-5.021-11.217-11.216-11.217zM12 21.354c-5.273 0-9.381-3.886-9.381-9.159s3.942-9.548 9.215-9.548 9.548 4.275 9.548 9.548c-.001 5.272-4.109 9.159-9.382 9.159zm3.108-9.751c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962z"/></svg>
                   </button>
                   <input 
                     type="file" 
@@ -709,18 +710,29 @@ export default function Chat() {
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     disabled={sending}
-                    className="text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+                    className="text-gray-400 hover:text-white transition-colors p-1.5 disabled:opacity-50"
                   >
-                     <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M1.816 15.556v.002c0 1.502.584 2.912 1.646 3.972s2.472 1.647 3.974 1.647a5.58 5.58 0 003.972-1.645l9.547-9.548c.769-.768 1.147-1.767 1.058-2.817-.079-.968-.548-1.927-1.319-2.698-1.594-1.592-4.068-1.711-5.517-.262l-7.916 7.915c-.881.881-.792 2.25.214 3.261.959.958 2.423 1.053 3.263.215l5.511-5.512c.28-.28.267-.722.053-.936l-.244-.244c-.191-.191-.567-.349-.957.04l-5.506 5.506c-.18.18-.635.127-.976-.214-.098-.097-.576-.613-.213-.973l7.915-7.917c.818-.817 2.267-.699 3.23.262.5.501.802 1.1.849 1.685.051.573-.156 1.111-.589 1.543l-9.547 9.549a3.97 3.97 0 01-2.829 1.171 3.975 3.975 0 01-2.83-1.173 3.973 3.973 0 01-1.172-2.828c0-1.071.415-2.076 1.172-2.83l7.209-7.211c.157-.157.264-.579.028-.814L11.5 4.36a.572.572 0 00-.834.018l-7.205 7.207a5.577 5.577 0 00-1.645 3.971z"/></svg>
+                     <svg className="w-6 h-6 md:w-7 md:h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M1.816 15.556v.002c0 1.502.584 2.912 1.646 3.972s2.472 1.647 3.974 1.647a5.58 5.58 0 003.972-1.645l9.547-9.548c.769-.768 1.147-1.767 1.058-2.817-.079-.968-.548-1.927-1.319-2.698-1.594-1.592-4.068-1.711-5.517-.262l-7.916 7.915c-.881.881-.792 2.25.214 3.261.959.958 2.423 1.053 3.263.215l5.511-5.512c.28-.28.267-.722.053-.936l-.244-.244c-.191-.191-.567-.349-.957.04l-5.506 5.506c-.18.18-.635.127-.976-.214-.098-.097-.576-.613-.213-.973l7.915-7.917c.818-.817 2.267-.699 3.23.262.5.501.802 1.1.849 1.685.051.573-.156 1.111-.589 1.543l-9.547 9.549a3.97 3.97 0 01-2.829 1.171 3.975 3.975 0 01-2.83-1.173 3.973 3.973 0 01-1.172-2.828c0-1.071.415-2.076 1.172-2.83l7.209-7.211c.157-.157.264-.579.028-.814L11.5 4.36a.572.572 0 00-.834.018l-7.205 7.207a5.577 5.577 0 00-1.645 3.971z"/></svg>
                   </button>
-                  <form className="flex-1 relative" onSubmit={handleSend}>
-                    <input 
-                      type="text" 
+                  </div>
+                  <form className="flex-1 min-w-[200px] w-full relative" onSubmit={handleSend}>
+                    <textarea 
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
+                      onInput={(e) => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (inputText.trim()) handleSend(e);
+                        }
+                      }}
+                      rows={1}
                       placeholder={sending ? "Enviando..." : isInternalNote ? "Escribe una nota interna..." : "Escribe un mensaje"}
                       disabled={sending}
-                      className={`w-full bg-hover rounded-lg px-4 py-2.5 text-[15px] focus:outline-none disabled:opacity-50 transition-colors ${
+                      className={`w-full bg-hover rounded-lg px-4 py-2.5 text-[15px] focus:outline-none disabled:opacity-50 transition-colors resize-none overflow-y-auto min-h-[44px] leading-relaxed ${
                         isInternalNote ? 'bg-yellow-900/20 text-yellow-500 placeholder-yellow-700/50' : 'text-[#e9edef] placeholder-gray-400'
                       }`}
                     />
