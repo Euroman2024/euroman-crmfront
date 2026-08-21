@@ -31,7 +31,7 @@ const formatPhoneNumber = (value = '') => {
 const getContactDisplayName = (contacto) => {
   const name = contacto?.nombre?.trim();
   const isUnknown = name ? /^(desconocido|unknown)$/i.test(name) : false;
-  if (name && !isUnknown) return name;
+  if (name && !isUnknown && !name.startsWith('~')) return name;
   return formatPhoneNumber(contacto?.telefono?.split('@')[0] || contacto?.telefono || '');
 };
 
@@ -420,6 +420,11 @@ export default function Chat() {
                     <div className="flex justify-between items-baseline mb-0.5">
                       <h4 className={`text-[16px] flex items-center gap-2 truncate ${conv.estado === 'nuevo' ? 'text-white font-semibold' : 'text-[#e9edef]'}`}>
                         <span className="truncate">{contactoNombre}</span>
+                        {conv.contacto?.nombre?.startsWith('~') && (
+                          <span className="text-xs text-gray-400 font-normal truncate max-w-[80px]" title={conv.contacto.nombre}>
+                            {conv.contacto.nombre}
+                          </span>
+                        )}
                         {conv.asignadoA && (
                           <span className="shrink-0 text-[10px] bg-[#202c33] text-gray-400 px-1.5 py-0.5 rounded flex items-center" title={`Atendido por ${conv.usuario?.nombre || 'Vendedor'}${conv.notaAsignacion ? ` - ${conv.notaAsignacion}` : ''}`}>
                             <svg className="w-3 h-3 text-primary mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
@@ -481,50 +486,54 @@ export default function Chat() {
                  </div>
                  <div className="flex flex-col min-w-0">
                    <div className="flex items-center gap-2 min-w-0">
-                     {editingContactName ? (
-                       <input 
-                         type="text" 
-                         value={newContactName}
-                         onChange={(e) => setNewContactName(e.target.value)}
-                         className="bg-[#202c33] text-white px-2 py-1 rounded outline-none text-[14px] w-full max-w-[150px]"
-                         autoFocus
-                         onKeyDown={async (e) => {
-                           if (e.key === 'Enter' && !updatingName) {
-                             setUpdatingName(true);
-                             try {
-                               await api.put(`/contactos/${activeChat.contacto.id}`, { nombre: newContactName.trim() });
-                               setConversaciones(prev => prev.map(c => 
-                                 c.contacto.id === activeChat.contacto.id 
-                                   ? { ...c, contacto: { ...c.contacto, nombre: newContactName.trim() } } 
-                                   : c
-                               ));
-                               setEditingContactName(false);
-                             } catch(err) {
-                               alert('Error al actualizar nombre');
-                             } finally {
-                               setUpdatingName(false);
-                             }
-                           }
-                           if (e.key === 'Escape') setEditingContactName(false);
-                         }}
-                         disabled={updatingName}
-                       />
-                     ) : (
-                       <>
-                         <h3 className="font-semibold text-[#e9edef] text-[14px] md:text-[16px] truncate">{getContactDisplayName(activeChat.contacto)}</h3>
-                         <button onClick={() => {
-                           setNewContactName(activeChat.contacto.nombre || '');
-                           setEditingContactName(true);
-                         }} className="text-gray-400 hover:text-white flex-shrink-0" title="Editar nombre">
-                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                         </button>
-                       </>
-                     )}
-                   </div>
-                   <span className="text-[11px] md:text-[13px] text-gray-400 truncate">
-                     {formatPhoneNumber(activeChat.contacto.telefono?.split('@')[0] || activeChat.contacto.telefono || '')} <span className="hidden sm:inline">• Línea: {activeChat.whatsappAccount?.nombre || 'Desconocida'}</span>
-                   </span>
-                 </div>
+                    <h2 className="text-[#e9edef] text-[15px] md:text-[16px] font-medium truncate flex items-center gap-2">
+                      {editingContactName ? (
+                        <input
+                          autoFocus
+                          value={newContactName}
+                          onChange={(e) => setNewContactName(e.target.value)}
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter') {
+                              try {
+                                await api.put(`/contactos/${activeChat.contacto.id}`, { nombre: newContactName.trim() });
+                                setConversaciones(prev => prev.map(c => 
+                                  c.contacto.id === activeChat.contacto.id 
+                                    ? { ...c, contacto: { ...c.contacto, nombre: newContactName.trim() } } 
+                                    : c
+                                ));
+                                setEditingContactName(false);
+                              } catch (err) {
+                                alert('Error al actualizar nombre');
+                              }
+                            } else if (e.key === 'Escape') {
+                              setEditingContactName(false);
+                            }
+                          }}
+                          className="bg-[#202c33] border-b border-primary outline-none px-1 py-0.5 text-[#e9edef] w-full"
+                          placeholder="Nombre del contacto..."
+                        />
+                      ) : (
+                        <>
+                          <span className="truncate">{getContactDisplayName(activeChat.contacto)}</span>
+                          {activeChat.contacto?.nombre?.startsWith('~') && (
+                            <span className="text-sm text-gray-400 font-normal truncate" title={activeChat.contacto.nombre}>
+                              {activeChat.contacto.nombre}
+                            </span>
+                          )}
+                          <button onClick={() => {
+                            setEditingContactName(true);
+                            setNewContactName(activeChat.contacto.nombre?.startsWith('~') ? '' : (activeChat.contacto.nombre || ''));
+                          }} className="text-gray-400 hover:text-white flex-shrink-0" title="Editar nombre">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                          </button>
+                        </>
+                      )}
+                    </h2>
+                    <div className="text-gray-400 text-[12px] md:text-[13px] truncate flex items-center gap-2">
+                      {formatPhoneNumber(activeChat.contacto.telefono?.split('@')[0] || activeChat.contacto.telefono || '')} <span className="hidden sm:inline">  •  Línea: {activeChat.whatsappAccount?.nombre || 'Desconocida'}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="flex gap-2 md:gap-4 items-center min-w-0 flex-shrink ml-2 max-w-[50%] md:max-w-none">
                  {activeChat.asignadoA ? (
@@ -1049,11 +1058,22 @@ export default function Chat() {
                   <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 ${selectedForwardChats.includes(chat.id) ? 'bg-primary border-primary' : 'border-gray-500'}`}>
                     {selectedForwardChats.includes(chat.id) && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>}
                   </div>
-                  <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center text-white font-bold mr-3">
-                    {chat.contacto?.nombre ? chat.contacto.nombre.charAt(0).toUpperCase() : '?'}
+                  <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center text-white font-bold mr-3 overflow-hidden">
+                    {chat.contacto?.fotoPerfilUrl ? (
+                      <img src={chat.contacto.fotoPerfilUrl} alt="Perfil" className="w-full h-full object-cover" />
+                    ) : (
+                      getContactDisplayName(chat.contacto).charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[#e9edef] font-medium truncate">{chat.contacto?.nombre || chat.contacto?.telefono}</div>
+                    <div className="text-[#e9edef] font-medium truncate flex items-center gap-2">
+                      <span className="truncate">{getContactDisplayName(chat.contacto)}</span>
+                      {chat.contacto?.nombre?.startsWith('~') && (
+                        <span className="text-xs text-gray-400 font-normal truncate max-w-[80px]">
+                          {chat.contacto.nombre}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
