@@ -62,10 +62,11 @@ export default function Chat() {
   const fileInputRef = useRef(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [dialogInput, setDialogInput] = useState('');
-  const [fullscreenMedia, setFullscreenMedia] = useState(null);
+  const [fullscreenMedia, setFullscreenMedia] = useState(null); // { url, index }
   const [forwardMessage, setForwardMessage] = useState(null);
   const [forwardSearch, setForwardSearch] = useState('');
   const [selectedForwardChats, setSelectedForwardChats] = useState([]);
+  const [editingMessage, setEditingMessage] = useState(null); // { id, contenido }
   
   const messagesEndRef = useRef(null);
 
@@ -196,10 +197,22 @@ export default function Chat() {
     socket.on('message_sent', handleIncoming);   // Mensaje nuestro enviado (quizás por otro vendedor)
     socket.on('chat_assigned', handleChatAssigned);
 
+    // Actualizar mensaje editado en tiempo real
+    socket.on('message_edited', ({ mensajeId, contenido }) => {
+      setMensajes(prev => prev.map(m => m.id === mensajeId ? { ...m, contenido, editado: true } : m));
+    });
+
+    // Eliminar mensaje en tiempo real
+    socket.on('message_deleted', ({ mensajeId }) => {
+      setMensajes(prev => prev.filter(m => m.id !== mensajeId));
+    });
+
     return () => {
       socket.off('new_message', handleIncoming);
       socket.off('message_sent', handleIncoming);
       socket.off('chat_assigned', handleChatAssigned);
+      socket.off('message_edited');
+      socket.off('message_deleted');
       socket.disconnect();
     };
   }, []); // Sin dependencias: el socket se crea UNA VEZ y nunca se reconecta al cambiar de chat
@@ -606,8 +619,32 @@ export default function Chat() {
                                   : 'bg-bubble-in text-[#e9edef] rounded-tl-none'
                             }`
                       }`}>
-                        {/* Botones Flotantes (Responder y Reenviar) */}
-                        <div className={`absolute top-1 ${isOutgoing ? 'left-[-70px]' : 'right-[-70px]'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10`}>
+                        {/* Botones Flotantes (Responder, Reenviar, Editar, Eliminar) */}
+                        <div className={`absolute top-1 ${isOutgoing ? 'left-[-110px]' : 'right-[-70px]'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10`}>
+                          {isOutgoing && (
+                            <>
+                              <button 
+                                onClick={() => setEditingMessage({ id: msg.id, contenido: msg.contenido })}
+                                className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-blue-400 shadow-md"
+                                title="Editar mensaje"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  if (!window.confirm('¿Eliminar este mensaje?')) return;
+                                  try {
+                                    await api.delete(`/messages/${msg.id}`);
+                                    setMensajes(prev => prev.filter(m => m.id !== msg.id));
+                                  } catch (e) { alert('Error al eliminar'); }
+                                }}
+                                className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-red-400 shadow-md"
+                                title="Eliminar mensaje"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                              </button>
+                            </>
+                          )}
                           <button 
                             onClick={() => setForwardMessage(msg)}
                             className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-white shadow-md"
@@ -643,7 +680,12 @@ export default function Chat() {
                             src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} 
                             alt="Adjunto" 
                             onLoad={scrollToBottom}
-                            onClick={() => !isSticker && setFullscreenMedia(`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`)}
+                            onClick={() => {
+                              if (isSticker) return;
+                              const allImgs = mensajes.filter(m => m.archivoUrl && m.mimetype?.startsWith('image/') && m.mimetype !== 'image/webp');
+                              const idx = allImgs.findIndex(m => m.id === msg.id);
+                              setFullscreenMedia({ url: `${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`, index: idx, imgs: allImgs });
+                            }}
                             className={msg.mimetype === 'image/webp' ? "w-32 h-32 object-contain mb-1 drop-shadow-md bg-transparent" : "max-w-full max-h-[350px] w-auto object-cover md:object-contain rounded-md mb-1 cursor-pointer hover:opacity-90 transition-opacity"} 
                           />
                         )}
@@ -672,8 +714,37 @@ export default function Chat() {
                           </div>
                         )}
 
-                        {!isSticker && msg.contenido && !['[image]', '[video]', '[audio]', '[document]', '[sticker]'].includes(msg.contenido) && (
-                          <p className={`text-[14.5px] whitespace-pre-wrap break-words leading-relaxed pr-10 ${isInternal ? 'text-yellow-900' : ''}`}>{msg.contenido}</p>
+                        {/* Texto del mensaje o input de edición */}
+                        {editingMessage?.id === msg.id ? (
+                          <div className="flex flex-col gap-1 mt-1">
+                            <textarea
+                              autoFocus
+                              value={editingMessage.contenido}
+                              onChange={e => setEditingMessage({ ...editingMessage, contenido: e.target.value })}
+                              className="bg-black/20 text-[#e9edef] rounded p-1.5 text-sm w-full resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                              rows={2}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <button onClick={() => setEditingMessage(null)} className="text-xs text-gray-400 hover:text-white px-2 py-1">Cancelar</button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.put(`/messages/${msg.id}/edit`, { contenido: editingMessage.contenido });
+                                    setMensajes(prev => prev.map(m => m.id === msg.id ? { ...m, contenido: editingMessage.contenido, editado: true } : m));
+                                    setEditingMessage(null);
+                                  } catch (e) { alert('Error al editar'); }
+                                }}
+                                className="text-xs bg-primary text-white px-2 py-1 rounded hover:bg-primary/90"
+                              >Guardar</button>
+                            </div>
+                          </div>
+                        ) : (
+                          !isSticker && msg.contenido && !['[image]', '[video]', '[audio]', '[document]', '[sticker]'].includes(msg.contenido) && (
+                            <p className={`text-[14.5px] whitespace-pre-wrap break-words leading-relaxed pr-10 ${isInternal ? 'text-yellow-900' : ''}`}>
+                              {msg.contenido}
+                              {msg.editado && <span className="text-[11px] text-gray-400 ml-1 italic">(editado)</span>}
+                            </p>
+                          )
                         )}
                         <span className={`text-[11px] absolute bottom-1.5 right-2 leading-none ${isSticker ? 'text-white drop-shadow-md bg-black/40 px-1.5 py-0.5 rounded-full' : isInternal ? 'text-yellow-700' : 'text-gray-400'}`}>
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -857,23 +928,84 @@ export default function Chat() {
         </div>
       )}
 
-      {/* Modal de Imagen en Pantalla Completa (Lightbox) */}
-      {fullscreenMedia && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm transition-all duration-300">
-          <button 
-            onClick={() => setFullscreenMedia(null)}
-            className="absolute top-4 right-4 md:top-6 md:right-6 text-white/70 hover:text-white p-2 bg-black/50 hover:bg-black/80 rounded-full transition-all"
+      {/* Modal de Imagen en Pantalla Completa (Lightbox Carrusel) */}
+      {fullscreenMedia && (() => {
+        const { url, index, imgs } = fullscreenMedia;
+        const total = imgs?.length || 1;
+        const baseUrl = import.meta.env.VITE_API_URL.replace('/api','');
+        const goTo = (newIdx) => {
+          const clamped = Math.max(0, Math.min(newIdx, total - 1));
+          const m = imgs[clamped];
+          setFullscreenMedia({ url: `${baseUrl}${m.archivoUrl}`, index: clamped, imgs });
+        };
+        return (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/92 backdrop-blur-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setFullscreenMedia(null);
+              if (e.key === 'ArrowLeft') goTo(index - 1);
+              if (e.key === 'ArrowRight') goTo(index + 1);
+            }}
+            tabIndex={0}
+            ref={el => el && el.focus()}
           >
-            <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-          </button>
-          
-          <img 
-            src={fullscreenMedia} 
-            alt="Media en pantalla completa" 
-            className="max-w-[95vw] max-h-[95vh] object-contain rounded-lg shadow-2xl"
-          />
-        </div>
-      )}
+            {/* Cerrar */}
+            <button
+              onClick={() => setFullscreenMedia(null)}
+              className="absolute top-4 right-4 md:top-6 md:right-6 text-white/70 hover:text-white p-2 bg-black/50 hover:bg-black/80 rounded-full transition-all z-10"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            {/* Descargar */}
+            <a
+              href={url}
+              download
+              target="_blank"
+              rel="noreferrer"
+              className="absolute top-4 left-4 md:top-6 md:left-6 text-white/70 hover:text-white p-2 bg-black/50 hover:bg-black/80 rounded-full transition-all z-10"
+              title="Descargar imagen"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            </a>
+
+            {/* Contador */}
+            {total > 1 && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-1.5 rounded-full z-10">
+                {index + 1} / {total}
+              </div>
+            )}
+
+            {/* Flecha izquierda */}
+            {index > 0 && (
+              <button
+                onClick={() => goTo(index - 1)}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-3 bg-black/50 hover:bg-black/80 rounded-full transition-all z-10"
+              >
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+            )}
+
+            {/* Imagen */}
+            <img
+              key={url}
+              src={url}
+              alt="Vista previa"
+              className="max-w-[88vw] max-h-[88vh] object-contain rounded-lg shadow-2xl select-none"
+            />
+
+            {/* Flecha derecha */}
+            {index < total - 1 && (
+              <button
+                onClick={() => goTo(index + 1)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-3 bg-black/50 hover:bg-black/80 rounded-full transition-all z-10"
+              >
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Modal de Reenviar Mensaje */}
       {forwardMessage && (
