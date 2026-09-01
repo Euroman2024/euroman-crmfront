@@ -36,7 +36,12 @@ const getContactDisplayName = (contacto) => {
 };
 
 export default function Chat() {
+  // Constante segura para construir URLs de medios (imágenes, audio, video, documentos).
+  // Usar VITE_API_URL directamente crashea si no está definida en producción.
+  const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api', '');
+
   const [accounts, setAccounts] = useState([]);
+
   const [conversaciones, setConversaciones] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const activeChatIdRef = useRef(activeChatId);
@@ -207,12 +212,20 @@ export default function Chat() {
       setMensajes(prev => prev.filter(m => m.id !== mensajeId));
     });
 
+    // Fusión de chats: cuando un chat LID se fusiona con el real, eliminar el chat
+    // fantasma de la lista local y, si estaba abierto, redirigir al chat real.
+    socket.on('conversation_merged', ({ oldId, newId }) => {
+      setConversaciones(prev => prev.filter(c => c.id !== oldId));
+      setActiveChatId(prev => prev === oldId ? newId : prev);
+    });
+
     return () => {
       socket.off('new_message', handleIncoming);
       socket.off('message_sent', handleIncoming);
       socket.off('chat_assigned', handleChatAssigned);
       socket.off('message_edited');
       socket.off('message_deleted');
+      socket.off('conversation_merged');
       socket.disconnect();
     };
   }, []); // Sin dependencias: el socket se crea UNA VEZ y nunca se reconecta al cambiar de chat
@@ -686,26 +699,26 @@ export default function Chat() {
                         
                         {msg.archivoUrl && msg.mimetype?.startsWith('image/') && (
                           <img 
-                            src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} 
+                            src={`${API_BASE}${msg.archivoUrl}`} 
                             alt="Adjunto" 
                             onLoad={scrollToBottom}
                             onClick={() => {
                               if (isSticker) return;
                               const allImgs = mensajes.filter(m => m.archivoUrl && m.mimetype?.startsWith('image/') && m.mimetype !== 'image/webp');
                               const idx = allImgs.findIndex(m => m.id === msg.id);
-                              setFullscreenMedia({ url: `${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`, index: idx, imgs: allImgs });
+                              setFullscreenMedia({ url: `${API_BASE}${msg.archivoUrl}`, index: idx, imgs: allImgs });
                             }}
                             className={msg.mimetype === 'image/webp' ? "w-32 h-32 object-contain mb-1 drop-shadow-md bg-transparent" : "max-w-full max-h-[350px] w-auto object-cover md:object-contain rounded-md mb-1 cursor-pointer hover:opacity-90 transition-opacity"} 
                           />
                         )}
                         {msg.archivoUrl && msg.mimetype?.startsWith('audio/') && (
-                          <audio src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls onLoadedData={scrollToBottom} className="max-w-full mb-1 h-10 w-[250px]" />
+                          <audio src={`${API_BASE}${msg.archivoUrl}`} controls onLoadedData={scrollToBottom} className="max-w-full mb-1 h-10 w-[250px]" />
                         )}
                         {msg.archivoUrl && msg.mimetype?.startsWith('video/') && (
-                          <video src={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} controls onLoadedData={scrollToBottom} className="max-w-full max-h-[350px] w-auto rounded-md mb-1" />
+                          <video src={`${API_BASE}${msg.archivoUrl}`} controls onLoadedData={scrollToBottom} className="max-w-full max-h-[350px] w-auto rounded-md mb-1" />
                         )}
                         {msg.archivoUrl && !msg.mimetype?.startsWith('image/') && !msg.mimetype?.startsWith('audio/') && !msg.mimetype?.startsWith('video/') && (
-                          <a href={`${import.meta.env.VITE_API_URL.replace('/api','')}${msg.archivoUrl}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-black/20 p-2 rounded-lg mb-1 text-sm hover:bg-black/30 transition-colors text-white break-all">
+                          <a href={`${API_BASE}${msg.archivoUrl}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-black/20 p-2 rounded-lg mb-1 text-sm hover:bg-black/30 transition-colors text-white break-all">
                             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                             Descargar Archivo
                           </a>
@@ -941,7 +954,7 @@ export default function Chat() {
       {fullscreenMedia && (() => {
         const { url, index, imgs } = fullscreenMedia;
         const total = imgs?.length || 1;
-        const baseUrl = import.meta.env.VITE_API_URL.replace('/api','');
+        const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace('/api','');
         const goTo = (newIdx) => {
           const clamped = Math.max(0, Math.min(newIdx, total - 1));
           const m = imgs[clamped];
