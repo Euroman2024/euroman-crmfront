@@ -42,6 +42,65 @@ const getContactDisplayName = (contacto) => {
   return formatPhoneNumber(contacto?.telefono?.split('@')[0] || contacto?.telefono || '');
 };
 
+const ZoomableImage = ({ url }) => {
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleWheel = (e) => {
+    e.stopPropagation();
+    const zoomChange = e.deltaY * -0.002;
+    setZoom(prev => Math.min(Math.max(1, prev + zoomChange), 10)); // max 10x zoom
+  };
+
+  const handleMouseDown = (e) => {
+    if (zoom > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, [url]);
+
+  return (
+    <div 
+      className={`flex items-center justify-center w-full h-full ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <img
+        src={url}
+        alt="Vista previa"
+        style={{ 
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, 
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+          transformOrigin: 'center center'
+        }}
+        className="max-w-[88vw] max-h-[88vh] object-contain rounded-lg shadow-2xl select-none"
+        draggable={false}
+      />
+    </div>
+  );
+};
+
+
 export default function Chat() {
   // Constante segura para construir URLs de medios (imágenes, audio, video, documentos).
   // Usar VITE_API_URL directamente crashea si no está definida en producción.
@@ -1024,12 +1083,9 @@ export default function Chat() {
             )}
 
             {/* Imagen */}
-            <img
-              key={url}
-              src={url}
-              alt="Vista previa"
-              className="max-w-[88vw] max-h-[88vh] object-contain rounded-lg shadow-2xl select-none"
-            />
+            <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
+              <ZoomableImage url={url} />
+            </div>
 
             {/* Flecha derecha */}
             {index < total - 1 && (
