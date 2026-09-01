@@ -4,6 +4,13 @@ import api from '../api/axios';
 import EmojiPicker from 'emoji-picker-react';
 import { useAuthStore } from '../store/useAuthStore';
 
+// Socket creado como singleton a nivel de módulo para que React StrictMode
+// (que monta y desmonta el componente dos veces en desarrollo) no destruya
+// la conexión cuando ejecuta el cleanup del primer montaje.
+const _socketUrl = (import.meta.env.VITE_SOCKET_URL ||
+  (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(/\/api$/, ''));
+const socket = io(_socketUrl, { autoConnect: true });
+
 const formatPhoneNumber = (value = '') => {
   const digits = String(value || '').replace(/\D/g, '');
   if (!digits) return 'Sin número';
@@ -135,14 +142,14 @@ export default function Chat() {
 
   // Sockets para Tiempo Real
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api$/, '');
-    const socket = io(socketUrl);
+    // Usar el socket singleton (creado fuera del componente).
+    // No lo reconectamos ni desconectamos en cleanup para sobrevivir
+    // al doble-montaje de React StrictMode en desarrollo.
 
     // Escuchar cambios de estado de las líneas (conexión/desconexión)
-    socket.on('status_changed', ({ accountId, status }) => {
+    const handleStatusChanged = ({ accountId, status }) => {
       setAccounts(prev => prev.map(acc => acc.id === accountId ? { ...acc, estado: status } : acc));
-    });
+    };
 
     const handleIncoming = (payload) => {
       const { conversacionId, mensaje } = payload;
@@ -163,31 +170,38 @@ export default function Chat() {
         const idx = prev.findIndex(c => c.id === conversacionId);
         if (idx !== -1) {
           const updated = [...prev];
-          const currentPreview = updated[idx].mensajes?.[0];
-          
-          // Solo actualizar preview y subir en la lista si el mensaje es más nuevo
-          if (!currentPreview || new Date(mensaje.createdAt) >= new Date(currentPreview.createdAt)) {
-            updated[idx].mensajes = [mensaje];
-            updated[idx].updatedAt = mensaje.createdAt;
-            if (mensaje.tipo === 'incoming' && activeChatIdRef.current !== conversacionId) {
-              updated[idx].estado = 'nuevo';
-            } else if (mensaje.tipo === 'outgoing') {
-              updated[idx].estado = 'leido';
-            }
-            const [moved] = updated.splice(idx, 1);
-            return [moved, ...updated];
-          }
-          return updated;
+
+          // Siempre actualizar preview con el mensaje más reciente
+          updated[idx] = {
+            ...updated[idx],
+            mensajes: [mensaje],
+            updatedAt: mensaje.createdAt,
+            // Marcar como nuevo SIEMPRE que sea incoming y el chat no esté abierto
+            estado: (mensaje.tipo === 'incoming' && activeChatIdRef.current !== conversacionId)
+              ? 'nuevo'
+              : (mensaje.tipo === 'outgoing' ? 'leido' : updated[idx].estado)
+          };
+
+          // Mover al tope de la lista
+          const [moved] = updated.splice(idx, 1);
+          return [moved, ...updated];
         } else {
-          // Si es un chat totalmente nuevo, lo agregamos arriba
-          return [{
+          // Chat nuevo: no está en la lista aún.
+          const nuevoChat = {
             id: conversacionId,
-            contacto: payload.contacto,
+            contacto: payload.contacto || { nombre: null, telefono: conversacionId },
             whatsappAccount: { id: payload.whatsappAccountId, nombre: 'Línea', estado: 'conectado' },
-            estado: payload.mensaje.tipo === 'incoming' ? 'nuevo' : 'leido',
+            estado: mensaje.tipo === 'incoming' ? 'nuevo' : 'leido',
             mensajes: [mensaje],
             updatedAt: mensaje.createdAt
-          }, ...prev];
+          };
+
+          // Recargar conversaciones completas desde la API para tener datos completos
+          api.get('/conversaciones').then(({ data }) => {
+            setConversaciones(data);
+          }).catch(() => {});
+
+          return [nuevoChat, ...prev];
         }
       });
     };
@@ -198,37 +212,38 @@ export default function Chat() {
       ));
     };
 
-    socket.on('new_message', handleIncoming);    // Mensaje del cliente
-    socket.on('message_sent', handleIncoming);   // Mensaje nuestro enviado (quizás por otro vendedor)
-    socket.on('chat_assigned', handleChatAssigned);
-
-    // Actualizar mensaje editado en tiempo real
-    socket.on('message_edited', ({ mensajeId, contenido }) => {
+    const handleMessageEdited = ({ mensajeId, contenido }) => {
       setMensajes(prev => prev.map(m => m.id === mensajeId ? { ...m, contenido, editado: true } : m));
-    });
+    };
 
-    // Eliminar mensaje en tiempo real
-    socket.on('message_deleted', ({ mensajeId }) => {
+    const handleMessageDeleted = ({ mensajeId }) => {
       setMensajes(prev => prev.filter(m => m.id !== mensajeId));
-    });
+    };
 
-    // Fusión de chats: cuando un chat LID se fusiona con el real, eliminar el chat
-    // fantasma de la lista local y, si estaba abierto, redirigir al chat real.
-    socket.on('conversation_merged', ({ oldId, newId }) => {
+    const handleConversationMerged = ({ oldId, newId }) => {
       setConversaciones(prev => prev.filter(c => c.id !== oldId));
       setActiveChatId(prev => prev === oldId ? newId : prev);
-    });
+    };
+
+    socket.on('status_changed', handleStatusChanged);
+    socket.on('new_message', handleIncoming);
+    socket.on('message_sent', handleIncoming);
+    socket.on('chat_assigned', handleChatAssigned);
+    socket.on('message_edited', handleMessageEdited);
+    socket.on('message_deleted', handleMessageDeleted);
+    socket.on('conversation_merged', handleConversationMerged);
 
     return () => {
+      // Solo quitamos los listeners (NO desconectamos el socket singleton)
+      socket.off('status_changed', handleStatusChanged);
       socket.off('new_message', handleIncoming);
       socket.off('message_sent', handleIncoming);
       socket.off('chat_assigned', handleChatAssigned);
-      socket.off('message_edited');
-      socket.off('message_deleted');
-      socket.off('conversation_merged');
-      socket.disconnect();
+      socket.off('message_edited', handleMessageEdited);
+      socket.off('message_deleted', handleMessageDeleted);
+      socket.off('conversation_merged', handleConversationMerged);
     };
-  }, []); // Sin dependencias: el socket se crea UNA VEZ y nunca se reconecta al cambiar de chat
+  }, []); // Sin dependencias: los handlers se registran una vez
 
   // Cargar cuentas de Whatsapp para mostrar estado de las líneas (visible para vendedores)
   useEffect(() => {
