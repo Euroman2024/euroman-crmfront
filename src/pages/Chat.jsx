@@ -138,6 +138,7 @@ export default function Chat() {
   const [forwardSearch, setForwardSearch] = useState('');
   const [selectedForwardChats, setSelectedForwardChats] = useState([]);
   const [editingMessage, setEditingMessage] = useState(null); // { id, contenido }
+  const [highlightedMsgId, setHighlightedMsgId] = useState(null);
   
   const messagesEndRef = useRef(null);
 
@@ -365,10 +366,24 @@ export default function Chat() {
     }
   };
 
-  const filteredForwardChats = conversaciones.filter(c => 
+  const filteredForwardChats = conversaciones.filter(c =>
     c.contacto?.nombre?.toLowerCase().includes(forwardSearch.toLowerCase()) ||
     c.contacto?.telefono?.includes(forwardSearch)
   );
+
+  // Al hacer click en un "Mensaje Citado", saltar y resaltar el mensaje original
+  const scrollToQuotedMessage = (quotedMensajeId) => {
+    if (!quotedMensajeId) return;
+    const target = mensajes.find(m => m.whatsappMsgId === quotedMensajeId);
+    if (!target) return;
+    const el = document.getElementById(`msg-${target.id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedMsgId(target.id);
+    setTimeout(() => {
+      setHighlightedMsgId(prev => (prev === target.id ? null : prev));
+    }, 1500);
+  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -703,15 +718,17 @@ export default function Chat() {
                   const isInternal = msg.mimetype === 'internal-note';
                   const isSticker = msg.mimetype === 'image/webp';
                   return (
-                    <div key={msg.id} className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'} group w-full mb-1`}>
-                      <div className={`relative max-w-[85%] md:max-w-[70%] rounded-lg break-words ${
+                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'} group w-full mb-1`}>
+                      <div className={`relative max-w-[85%] md:max-w-[70%] rounded-lg break-words transition-shadow duration-300 ${
+                        highlightedMsgId === msg.id ? 'ring-2 ring-primary' : ''
+                      } ${
                         isSticker
                           ? 'bg-transparent'
                           : `px-2.5 py-1.5 shadow-sm ${
                               isInternal
                                 ? 'bg-yellow-100 text-yellow-900 rounded-tr-none border border-yellow-200'
-                                : isOutgoing 
-                                  ? 'bg-bubble-out text-[#e9edef] rounded-tr-none' 
+                                : isOutgoing
+                                  ? 'bg-bubble-out text-[#e9edef] rounded-tr-none'
                                   : 'bg-bubble-in text-[#e9edef] rounded-tl-none'
                             }`
                       }`}>
@@ -798,9 +815,11 @@ export default function Chat() {
                           </a>
                         )}
 
-                        {/* Visualizar mensaje citado si existe */}
+                        {/* Visualizar mensaje citado si existe (click = ir al mensaje original) */}
                         {msg.quotedContenido && (
-                          <div className={`mb-1 p-1.5 rounded-md text-[13px] border-l-4 opacity-90
+                          <div
+                            onClick={() => scrollToQuotedMessage(msg.quotedMensajeId)}
+                            className={`mb-1 p-1.5 rounded-md text-[13px] border-l-4 opacity-90 ${msg.quotedMensajeId ? 'cursor-pointer hover:opacity-100' : ''}
                             ${isOutgoing ? 'bg-black/10 border-[#103629] text-[#e9edef]' : 'bg-black/5 border-primary text-[#e9edef]'}
                           `}>
                             <p className={`font-semibold text-xs mb-0.5 ${isOutgoing ? 'text-[#103629]' : 'text-primary'}`}>
