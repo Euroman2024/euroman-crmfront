@@ -278,8 +278,29 @@ export default function Chat() {
       setMensajes(prev => prev.map(m => m.id === mensajeId ? { ...m, contenido, editado: true } : m));
     };
 
-    const handleMessageDeleted = ({ mensajeId }) => {
-      setMensajes(prev => prev.filter(m => m.id !== mensajeId));
+    const handleMessageDeleted = ({ mensajeId, conversacionId, eliminadoParaTodos }) => {
+      if (eliminadoParaTodos) {
+        setMensajes(prev => prev.map(m => m.id === mensajeId ? { ...m, eliminado: true, contenido: '', archivoUrl: null, mimetype: null } : m));
+      } else {
+        setMensajes(prev => prev.filter(m => m.id !== mensajeId));
+      }
+
+      // Si ese mensaje era el que se mostraba como vista previa en la lista de
+      // chats, actualizarla también (si no, se queda con el texto viejo en caché).
+      let necesitaRecargarLista = false;
+      setConversaciones(prev => prev.map(c => {
+        if (c.id !== conversacionId || c.mensajes?.[0]?.id !== mensajeId) return c;
+        if (eliminadoParaTodos) {
+          return { ...c, mensajes: [{ ...c.mensajes[0], eliminado: true, contenido: '', archivoUrl: null, mimetype: null }] };
+        }
+        // Se eliminó "solo para mí": no sabemos cuál es el mensaje anterior
+        // sin consultar al servidor.
+        necesitaRecargarLista = true;
+        return c;
+      }));
+      if (necesitaRecargarLista) {
+        api.get('/conversaciones').then(({ data }) => setConversaciones(data)).catch(() => {});
+      }
     };
 
     const handleConversationMerged = ({ oldId, newId }) => {
@@ -395,7 +416,20 @@ export default function Chat() {
     setDeletingMessage(true);
     try {
       await api.delete(`/messages/${deleteMessageTarget.id}`, { data: { forEveryone } });
-      setMensajes(prev => prev.filter(m => m.id !== deleteMessageTarget.id));
+
+      const mensajesActualizados = forEveryone
+        ? mensajes.map(m => m.id === deleteMessageTarget.id ? { ...m, eliminado: true, contenido: '', archivoUrl: null, mimetype: null } : m)
+        : mensajes.filter(m => m.id !== deleteMessageTarget.id);
+      setMensajes(mensajesActualizados);
+
+      // Si era el mensaje que se mostraba como vista previa en la lista de
+      // chats, actualizarla también con el nuevo último mensaje.
+      setConversaciones(prev => prev.map(c => {
+        if (c.id !== activeChatId || c.mensajes?.[0]?.id !== deleteMessageTarget.id) return c;
+        const nuevoUltimo = mensajesActualizados[mensajesActualizados.length - 1];
+        return { ...c, mensajes: nuevoUltimo ? [nuevoUltimo] : [] };
+      }));
+
       setDeleteMessageTarget(null);
     } catch (error) {
       alert(error.response?.data?.message || 'Error al eliminar el mensaje');
@@ -506,9 +540,11 @@ export default function Chat() {
               const isActive = conv.id === activeChatId;
               const lastMessageData = conv.mensajes?.[0];
               const contactoNombre = getContactDisplayName(conv.contacto);
-              let lastMessage = lastMessageData?.contenido || '...';
-              
-              if (lastMessageData?.tipo === 'outgoing') {
+              let lastMessage = lastMessageData?.eliminado
+                ? 'Se eliminó este mensaje'
+                : (lastMessageData?.contenido || '...');
+
+              if (!lastMessageData?.eliminado && lastMessageData?.tipo === 'outgoing') {
                 lastMessage = `Tú: ${lastMessage}`;
               }
               
@@ -751,6 +787,13 @@ export default function Chat() {
                                   : 'bg-bubble-in text-[#e9edef] rounded-tl-none'
                             }`
                       }`}>
+                        {msg.eliminado ? (
+                          <p className="text-[13.5px] italic text-gray-400 flex items-center gap-1.5 pr-10">
+                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                            Se eliminó este mensaje
+                          </p>
+                        ) : (
+                        <>
                         {/* Botones Flotantes (Responder, Reenviar, Editar, Eliminar) */}
                         <div className={`absolute top-1 ${isOutgoing ? 'left-[-140px]' : 'right-[-100px]'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10`}>
                           {isOutgoing && (
@@ -871,6 +914,8 @@ export default function Chat() {
                               {msg.editado && <span className="text-[11px] text-gray-400 ml-1 italic">(editado)</span>}
                             </p>
                           )
+                        )}
+                        </>
                         )}
                         <span className={`text-[11px] absolute bottom-1.5 right-2 leading-none ${isSticker ? 'text-white drop-shadow-md bg-black/40 px-1.5 py-0.5 rounded-full' : isInternal ? 'text-yellow-700' : 'text-gray-400'}`}>
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
