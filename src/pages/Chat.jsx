@@ -139,6 +139,8 @@ export default function Chat() {
   const [selectedForwardChats, setSelectedForwardChats] = useState([]);
   const [editingMessage, setEditingMessage] = useState(null); // { id, contenido }
   const [highlightedMsgId, setHighlightedMsgId] = useState(null);
+  const [deleteMessageTarget, setDeleteMessageTarget] = useState(null); // mensaje a eliminar (elige para mí / para todos)
+  const [deletingMessage, setDeletingMessage] = useState(false);
   
   const messagesEndRef = useRef(null);
 
@@ -383,6 +385,23 @@ export default function Chat() {
     setTimeout(() => {
       setHighlightedMsgId(prev => (prev === target.id ? null : prev));
     }, 1500);
+  };
+
+  // Eliminar mensaje: "para mí" solo lo quita del CRM; "para todos" además lo
+  // revoca en WhatsApp (solo es posible para mensajes que TÚ enviaste, WhatsApp
+  // no permite borrar del teléfono un mensaje que envió el cliente).
+  const handleDeleteMessage = async (forEveryone) => {
+    if (!deleteMessageTarget || deletingMessage) return;
+    setDeletingMessage(true);
+    try {
+      await api.delete(`/messages/${deleteMessageTarget.id}`, { data: { forEveryone } });
+      setMensajes(prev => prev.filter(m => m.id !== deleteMessageTarget.id));
+      setDeleteMessageTarget(null);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error al eliminar el mensaje');
+    } finally {
+      setDeletingMessage(false);
+    }
   };
 
   const handleFileUpload = async (e) => {
@@ -733,32 +752,24 @@ export default function Chat() {
                             }`
                       }`}>
                         {/* Botones Flotantes (Responder, Reenviar, Editar, Eliminar) */}
-                        <div className={`absolute top-1 ${isOutgoing ? 'left-[-110px]' : 'right-[-70px]'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10`}>
+                        <div className={`absolute top-1 ${isOutgoing ? 'left-[-140px]' : 'right-[-100px]'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10`}>
                           {isOutgoing && (
-                            <>
-                              <button 
-                                onClick={() => setEditingMessage({ id: msg.id, contenido: msg.contenido })}
-                                className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-blue-400 shadow-md"
-                                title="Editar mensaje"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                              </button>
-                              <button 
-                                onClick={async () => {
-                                  if (!window.confirm('¿Eliminar este mensaje?')) return;
-                                  try {
-                                    await api.delete(`/messages/${msg.id}`);
-                                    setMensajes(prev => prev.filter(m => m.id !== msg.id));
-                                  } catch (e) { alert('Error al eliminar'); }
-                                }}
-                                className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-red-400 shadow-md"
-                                title="Eliminar mensaje"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                              </button>
-                            </>
+                            <button
+                              onClick={() => setEditingMessage({ id: msg.id, contenido: msg.contenido })}
+                              className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-blue-400 shadow-md"
+                              title="Editar mensaje"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </button>
                           )}
-                          <button 
+                          <button
+                            onClick={() => setDeleteMessageTarget(msg)}
+                            className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-red-400 shadow-md"
+                            title="Eliminar mensaje"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          </button>
+                          <button
                             onClick={() => setForwardMessage(msg)}
                             className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-white shadow-md"
                             title="Reenviar mensaje"
@@ -1038,6 +1049,45 @@ export default function Chat() {
                   Aceptar
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Eliminar Mensaje (para mí / para todos) */}
+      {deleteMessageTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
+          <div className="bg-[#111b21] border border-border/50 p-6 rounded-2xl shadow-2xl w-[90%] max-w-md">
+            <h3 className="text-lg font-semibold text-[#e9edef] mb-2">¿Eliminar mensaje?</h3>
+            <p className="text-gray-400 text-sm mb-6">
+              {deleteMessageTarget.tipo === 'outgoing'
+                ? 'Puedes eliminarlo solo de tu CRM, o eliminarlo también del WhatsApp del teléfono para que el cliente ya no lo vea.'
+                : 'Este mensaje lo envió el cliente: solo se puede quitar de tu CRM, WhatsApp no permite borrarlo de su teléfono.'}
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleDeleteMessage(false)}
+                disabled={deletingMessage}
+                className="w-full px-4 py-2.5 rounded-xl font-medium text-gray-200 bg-[#202c33] hover:bg-[#2a3942] transition-colors disabled:opacity-50"
+              >
+                Eliminar solo para mí
+              </button>
+              {deleteMessageTarget.tipo === 'outgoing' && (
+                <button
+                  onClick={() => handleDeleteMessage(true)}
+                  disabled={deletingMessage}
+                  className="w-full px-4 py-2.5 rounded-xl font-medium text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  Eliminar para todos
+                </button>
+              )}
+              <button
+                onClick={() => setDeleteMessageTarget(null)}
+                disabled={deletingMessage}
+                className="w-full px-4 py-2.5 rounded-xl font-medium text-gray-400 hover:bg-[#202c33] transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
