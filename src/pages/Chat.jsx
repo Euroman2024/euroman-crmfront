@@ -118,6 +118,8 @@ export default function Chat() {
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
     setEditingContactName(false);
+    setSelectionMode(false);
+    setSelectedMsgIds([]);
   }, [activeChatId]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [inputText, setInputText] = useState('');
@@ -141,6 +143,8 @@ export default function Chat() {
   const [highlightedMsgId, setHighlightedMsgId] = useState(null);
   const [deleteMessageTarget, setDeleteMessageTarget] = useState(null); // mensaje a eliminar (elige para mí / para todos)
   const [deletingMessage, setDeletingMessage] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false); // seleccionar varios mensajes para reenviar juntos
+  const [selectedMsgIds, setSelectedMsgIds] = useState([]);
   
   const messagesEndRef = useRef(null);
 
@@ -375,10 +379,20 @@ export default function Chat() {
     if (!forwardMessage || selectedForwardChats.length === 0) return;
     try {
       setSending(true);
-      await api.post('/messages/forward', {
-        sourceMessageId: forwardMessage.id,
-        targetConversacionIds: selectedForwardChats
-      });
+      if (forwardMessage.multi) {
+        // Reenvío de varios mensajes seleccionados a la vez
+        await api.post('/messages/forward', {
+          sourceMessageIds: selectedMsgIds,
+          targetConversacionIds: selectedForwardChats
+        });
+        setSelectionMode(false);
+        setSelectedMsgIds([]);
+      } else {
+        await api.post('/messages/forward', {
+          sourceMessageId: forwardMessage.id,
+          targetConversacionIds: selectedForwardChats
+        });
+      }
       setForwardMessage(null);
       setSelectedForwardChats([]);
     } catch (error) {
@@ -387,6 +401,18 @@ export default function Chat() {
     } finally {
       setSending(false);
     }
+  };
+
+  // Alternar la selección de un mensaje cuando estamos en modo "seleccionar varios"
+  const toggleMessageSelection = (msgId) => {
+    setSelectedMsgIds(prev =>
+      prev.includes(msgId) ? prev.filter(id => id !== msgId) : [...prev, msgId]
+    );
+  };
+
+  const cancelSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedMsgIds([]);
   };
 
   const filteredForwardChats = conversaciones.filter(c =>
@@ -761,6 +787,28 @@ export default function Chat() {
               </div>
             </div>
 
+            {/* Barra de selección múltiple (para reenviar varios mensajes juntos) */}
+            {selectionMode && (
+              <div className="bg-surface border-b border-border px-4 py-2.5 flex items-center justify-between z-20 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <button onClick={cancelSelectionMode} className="text-gray-400 hover:text-white" title="Cancelar selección">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                  </button>
+                  <span className="text-[#e9edef] text-sm font-medium">
+                    {selectedMsgIds.length} seleccionado{selectedMsgIds.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setForwardMessage({ multi: true })}
+                  disabled={selectedMsgIds.length === 0}
+                  className="bg-primary hover:bg-primary/90 text-white w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  title="Reenviar seleccionados"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </button>
+              </div>
+            )}
+
             {/* Historial de Mensajes */}
             <div className="flex-1 overflow-y-auto p-4 md:px-[5%] lg:px-[10%] space-y-2 z-10 flex flex-col min-w-0 overflow-x-hidden">
               {loadingMessages ? (
@@ -773,7 +821,20 @@ export default function Chat() {
                   const isInternal = msg.mimetype === 'internal-note';
                   const isSticker = msg.mimetype === 'image/webp';
                   return (
-                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex ${isOutgoing ? 'justify-end' : 'justify-start'} group w-full mb-1`}>
+                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex items-center gap-2 ${isOutgoing ? 'justify-end' : 'justify-start'} group w-full mb-1`}>
+                      {selectionMode && !msg.eliminado && (
+                        <button
+                          onClick={() => toggleMessageSelection(msg.id)}
+                          className="flex-shrink-0"
+                          title="Seleccionar mensaje"
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedMsgIds.includes(msg.id) ? 'bg-primary border-primary' : 'border-gray-500 bg-black/20'}`}>
+                            {selectedMsgIds.includes(msg.id) && (
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                            )}
+                          </div>
+                        </button>
+                      )}
                       <div className={`relative max-w-[85%] md:max-w-[70%] rounded-lg break-words transition-shadow duration-300 ${
                         highlightedMsgId === msg.id ? 'ring-2 ring-primary' : ''
                       } ${
@@ -794,8 +855,16 @@ export default function Chat() {
                           </p>
                         ) : (
                         <>
-                        {/* Botones Flotantes (Responder, Reenviar, Editar, Eliminar) */}
-                        <div className={`absolute top-1 ${isOutgoing ? 'left-[-140px]' : 'right-[-100px]'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10`}>
+                        {/* Botones Flotantes (Seleccionar, Responder, Reenviar, Editar, Eliminar) */}
+                        {!selectionMode && (
+                        <div className={`absolute top-1 ${isOutgoing ? 'left-[-170px]' : 'right-[-130px]'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10`}>
+                          <button
+                            onClick={() => { setSelectionMode(true); setSelectedMsgIds([msg.id]); }}
+                            className="bg-surface p-1.5 rounded-full text-gray-400 hover:text-white shadow-md"
+                            title="Seleccionar varios mensajes"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                          </button>
                           {isOutgoing && (
                             <button
                               onClick={() => setEditingMessage({ id: msg.id, contenido: msg.contenido })}
@@ -827,6 +896,7 @@ export default function Chat() {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
                           </button>
                         </div>
+                        )}
 
                         {/* Triangulito simulado */}
                         {!isSticker && (
@@ -1219,7 +1289,9 @@ export default function Chat() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
           <div className="bg-[#111b21] border border-border/50 rounded-2xl shadow-2xl w-[90%] max-w-md h-[80vh] flex flex-col overflow-hidden">
             <div className="p-4 border-b border-border bg-surface flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-[#e9edef]">Reenviar mensaje</h3>
+              <h3 className="text-lg font-semibold text-[#e9edef]">
+                {forwardMessage.multi ? `Reenviar ${selectedMsgIds.length} mensaje${selectedMsgIds.length !== 1 ? 's' : ''}` : 'Reenviar mensaje'}
+              </h3>
               <button onClick={() => { setForwardMessage(null); setSelectedForwardChats([]); }} className="text-gray-400 hover:text-white">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
